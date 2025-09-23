@@ -194,6 +194,54 @@ struct eos_parameters {
   struct SESAME_params custom[10];
 };
 
+
+/**
+ * @brief Returns the temperature given density and internal energy
+ *
+ * Only defined for SESAME materials.
+ *
+ * @param density The density \f$\rho\f$
+ * @param u The internal energy \f$u\f$
+ * @param mat_id The SESAME material ID
+ */
+__attribute__((always_inline)) INLINE static float
+temperature_from_internal_energy(float density, float u,
+                                 enum eos_planetary_material_id mat_id) {
+
+    const enum eos_planetary_type_id type =
+        (enum eos_planetary_type_id)(mat_id / eos_planetary_type_factor);
+
+    switch (type) {
+        case eos_planetary_type_ANEOS:;
+            switch (mat_id) {
+                case eos_planetary_id_ANEOS_forsterite:
+                    return SESAME_temperature_from_internal_energy(density, u,
+                                                                   &eos.ANEOS_forsterite);
+                    break;
+
+                case eos_planetary_id_ANEOS_iron:
+                    return SESAME_temperature_from_internal_energy(density, u,
+                                                                   &eos.ANEOS_iron);
+                    break;
+
+                case eos_planetary_id_ANEOS_Fe85Si15:
+                    return SESAME_temperature_from_internal_energy(density, u,
+                                                                   &eos.ANEOS_Fe85Si15);
+                    break;
+
+                default:
+                    return -1.f;  // unsupported ANEOS EOS
+            }
+            break;
+
+        default:
+            return -1.f;  // unsupported EOS
+    }
+
+
+
+}
+
 /**
  * @brief Returns the internal energy given density and entropy
  *

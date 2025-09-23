@@ -169,6 +169,15 @@ INLINE static void convert_part_potential(const struct engine* e,
     ret[0] = 0.f;
 }
 
+INLINE static void convert_part_temp(const struct engine* e,
+                                    const struct part* p,
+                                    const struct xpart* xp, float* ret) {
+    // ret[0] = 273.15f;  // Set fixed (temp)
+    // ret[0] = p->u;  // Set to internal energy (temp)
+    ret[0] = temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+}
+
+
 /**
  * @brief Specifies which particle fields to write to a dataset
  *
@@ -182,7 +191,7 @@ INLINE static void hydro_write_particles(const struct part* parts,
                                          struct io_props* list,
                                          int* num_fields) {
 
-  *num_fields = 11;
+  *num_fields = 12;
 
   /* List what we want to write */
   list[0] = io_make_output_field_convert_part(
@@ -217,6 +226,9 @@ INLINE static void hydro_write_particles(const struct part* parts,
   list[10] = io_make_output_field_convert_part(
       "Potentials", FLOAT, 1, UNIT_CONV_POTENTIAL, 0.f, parts, xparts,
       convert_part_potential, "Gravitational potentials of the particles");
+  list[11] = io_make_output_field_convert_part(
+    "Temperatures", FLOAT, 1, UNIT_CONV_TEMPERATURE, 0.f, parts, xparts,
+    convert_part_temp, "Temperatures of the particles");
 }
 
 /**

@@ -108,6 +108,19 @@ hydro_get_drifted_physical_internal_energy(const struct part *restrict p,
 }
 
 /**
+ * @brief Returns the temperature of a particle
+ *
+ * Computes the temperature based on the particle's internal energy, density,
+ * and equation of state.
+ *
+ * @param p The particle of interest
+ */
+__attribute__((always_inline)) INLINE static float hydro_get_temperature(
+    const struct part *restrict p) {
+  return temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+}
+
+/**
  * @brief Returns the comoving pressure of a particle
  *
  * Computes the pressure based on the particle's properties.
