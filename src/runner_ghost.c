@@ -1208,6 +1208,14 @@ void runner_do_ghost(struct runner *r, struct cell *c, int timer) {
           chemistry_end_density(p, chemistry, cosmo);
           star_formation_end_density(p, xp, star_formation, cosmo);
 
+#ifdef MY_DEF
+          /* Add my temperature check <harrison>*/
+          float T = (p->rho_evol, p->u, p->mat_id);
+          if (T > 3000.f) {
+            p->phase_space_flag = 1;
+          }
+#endif
+
           /* Are we using the alternative definition of the
              number of neighbours? */
           if (use_mass_weighted_num_ngb) {
