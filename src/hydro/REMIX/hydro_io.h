@@ -171,6 +171,15 @@ INLINE static void convert_part_potential(const struct engine* e,
     ret[0] = 0.f;
 }
 
+/*<harrison>*/
+INLINE static void convert_part_temp(const struct engine* e,
+                                    const struct part* p,
+                                    const struct xpart* xp, float* ret) {
+    // ret[0] = 273.15f;  // Set fixed (temp)
+    // ret[0] = p->u;  // Set to internal energy (temp)
+    ret[0] = temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+}
+
 /**
  * @brief Specifies which particle fields to write to a dataset
  *
@@ -184,7 +193,11 @@ INLINE static void hydro_write_particles(const struct part* parts,
                                          struct io_props* list,
                                          int* num_fields) {
 
-  *num_fields = 11;
+  #ifdef MY_DEF  // <harrison>
+    *num_fields = 13;
+  #else
+    *num_fields = 11;
+  #endif
 
   /* List what we want to write */
   list[0] = io_make_output_field_convert_part(
@@ -219,6 +232,15 @@ INLINE static void hydro_write_particles(const struct part* parts,
   list[10] = io_make_output_field_convert_part(
       "Potentials", FLOAT, 1, UNIT_CONV_POTENTIAL, 0.f, parts, xparts,
       convert_part_potential, "Gravitational potentials of the particles");
+
+  #ifdef MY_DEF  // <harrison>
+  list[11] = io_make_output_field_convert_part(
+    "Temperatures", FLOAT, 1, UNIT_CONV_TEMPERATURE, 0.f, parts, xparts,
+    convert_part_temp, "Temperatures of the particles");
+  list[12] = io_make_output_field_convert_part(  // Needs better naming <harrison>
+    "Flag", INT, 1, UNIT_CONV_NO_UNITS, 0.f, parts, xparts,
+    phase_space_flag, "Phase space flag");
+#endif
 
   hydro_write_particles_strength(parts, xparts, list, num_fields);
 }

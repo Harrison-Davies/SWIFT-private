@@ -109,6 +109,11 @@ struct part {
   /*! Pointer to corresponding gravity part. */
   struct gpart* gpart;
 
+#ifdef MY_DEF
+  /*! Custom flag, needs a better name and to be moved lower <harrison> */
+  int phase_space_flag;
+#endif
+
   /*! Particle position. */
   double x[3];
 

@@ -115,6 +115,10 @@ void space_first_init_parts_mapper(void *restrict map_data, int count,
     p[k].limiter_data.wakeup = time_bin_not_awake;
     p[k].limiter_data.to_be_synchronized = 0;
 
+#ifdef MY_FLAG  // Needs name changes <harrison>
+    p[k].phase_space_flag = 0;
+#endif
+
 #ifdef WITH_CSDS
     csds_part_data_init(&xp[k].csds_data);
 #endif
