@@ -233,6 +233,29 @@ INLINE static void load_table_SESAME(struct SESAME_params *SESAME,
   fclose(f);
 }
 
+// 
+INLINE static void load_flag_table_SESAME(struct SESAME_params *SESAME,
+                                     char *table_file) {
+  // Load table contents from file
+    FILE *f = fopen(table_file, "r");
+    if (f == NULL) error("Failed to open the SESAME flag file '%s'", table_file);
+
+    // Skip header lines
+    skip_lines(f, 12);
+
+    // Table properties
+    int version_date;
+    int c = fscanf(f, "%d", &version_date);
+    if (c != 1) error("Failed to read the SESAME flag table %s", table_file);
+    c = fscanf(f, "%d %d", &SESAME->num_rho, &SESAME->num_T);
+    if (c != 2) error("Failed to read the SESAME flag table %s", table_file);
+
+    // Ignore the first elements of rho = 0, T = 0
+    SESAME->num_rho--;
+    SESAME->num_T--;
+    float ignore;
+}
+
 // Misc. modifications
 INLINE static void prepare_table_SESAME(struct SESAME_params *SESAME) {
 
