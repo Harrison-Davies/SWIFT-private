@@ -1210,10 +1210,11 @@ void runner_do_ghost(struct runner *r, struct cell *c, int timer) {
 
 #ifdef MY_DEF
           /* Add my phase check <harrison>*/
-          float T = temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
-          if (T > 3000.f) {
-            p->phase_space_flag = 1;
-          }
+          float T = gas_temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+          // if (T > 3000.f) {
+          //   p->phase_space_flag = 1;
+          // }
+          p->phase_space_flag = phase_space_from_internal_energy;
 #endif
 
           /* Are we using the alternative definition of the

@@ -124,3 +124,5 @@ INLINE static int skip_lines(FILE *f, int n) {
 }
 
 #endif /* SWIFT_UTILITIES_H */
+
+// <harrison>
