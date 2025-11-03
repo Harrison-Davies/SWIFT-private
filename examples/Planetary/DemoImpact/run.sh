@@ -25,7 +25,7 @@ then
 fi
 
 # Run SWIFT
-../../../swift --hydro --self-gravity --threads=28 demo_impact_"$N_label".yml 2>&1 | tee output_"$N_label".txt
+../../../swift --hydro --self-gravity --threads=4 demo_impact_"$N_label".yml 2>&1 # | tee output_"$N_label".txt
 
 # Plot the snapshots
 python3 plot_snapshots.py

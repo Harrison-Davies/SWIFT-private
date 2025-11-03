@@ -235,7 +235,7 @@ INLINE static void load_table_SESAME(struct SESAME_params *SESAME,
 }
 
 // <harrison>
-INLINE static void load_flag_table_SESAME(struct SESAME_params SESAME,
+INLINE static void load_flag_table_SESAME(struct SESAME_params *SESAME,
                                      char *table_file) {
   // Load table contents from file
   FILE *f = fopen(table_file, "r");
@@ -255,6 +255,7 @@ INLINE static void load_flag_table_SESAME(struct SESAME_params SESAME,
   SESAME->num_rho--;
   SESAME->num_T--;
   float ignore;
+  int ignorei;
 
   // Allocate table memory
   SESAME->table_log_rho   = (float *)malloc(SESAME->num_rho * sizeof(float));
@@ -266,10 +267,10 @@ INLINE static void load_flag_table_SESAME(struct SESAME_params SESAME,
     // Ignore the first elements of rho = 0, T = 0
     if (i_rho == -1) {
       c = fscanf(f, "%f", &ignore);
-      if (c != 1) error("Failed to read the SESAME EoS table %s", table_file);
+      if (c != 1) error("Failed to read the SESAME flag table %s", table_file);
     } else {
       c = fscanf(f, "%f", &SESAME->table_log_rho[i_rho]);
-      if (c != 1) error("Failed to read the SESAME EoS table %s", table_file);
+      if (c != 1) error("Failed to read the SESAME flag table %s", table_file);
     }
   }
 
@@ -278,10 +279,10 @@ INLINE static void load_flag_table_SESAME(struct SESAME_params SESAME,
     // Ignore the first elements of rho = 0, T = 0
     if (i_T == -1) {
       c = fscanf(f, "%f", &ignore);
-      if (c != 1) error("Failed to read the SESAME EoS table %s", table_file);
+      if (c != 1) error("Failed to read the SESAME flag table %s", table_file);
     } else {
       c = fscanf(f, "%f", &SESAME->table_log_T[i_T]);
-      if (c != 1) error("Failed to read the SESAME EoS table %s", table_file);
+      if (c != 1) error("Failed to read the SESAME flag table %s", table_file);
     }
   }
 
@@ -289,10 +290,10 @@ INLINE static void load_flag_table_SESAME(struct SESAME_params SESAME,
   for (int i_rho = -1; i_rho < SESAME->num_rho; i_rho++) {
       for (int i_T = -1; i_T < SESAME->num_T; i_T++) {
         if ((i_T == -1) || (i_rho == -1)) {
-          c = fscanf(f, "%f", &ignore);
+          c = fscanf(f, "%d", &ignorei);
           if (c != 1) error("Failed to read KPA[%d, %d] from table '%s'", i_rho, i_T, table_file);
         } else{
-          c = fscanf(f, "%f", &SESAME->table_KPA_rho_T[i_rho * SESAME->num_T + i_T]);
+          c = fscanf(f, "%d", &SESAME->table_KPA_rho_T[i_rho * SESAME->num_T + i_T]);
           if (c != 1) error("Failed to read KPA[%d, %d] from table '%s'", i_rho, i_T, table_file);
         }
       }
@@ -1383,8 +1384,8 @@ INLINE static float SESAME_density_from_pressure_and_internal_energy(
 
 // material_phase_state_from_internal_energy
 INLINE static float SESAME_phase_state_from_internal_energy(
-    const float density, const float u, const struct mat_params *SESAME,
-    const struct SESAME_params *SESAME_eos) {
+    const float density, const float u, const struct mat_params *SESAME_mat,
+    const struct SESAME_params *SESAME) {
 
   float kpa, kpa_1, kpa_2, kpa_3, kpa_4;
 
@@ -1464,7 +1465,8 @@ INLINE static float SESAME_phase_state_from_internal_energy(
   kpa_4 = SESAME->table_KPA_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2 + 1];
 
   // Just use 1 for now (could pick closest)
-  kpa = kpa_1
+  kpa = kpa_1;
+  (void)kpa_2, (void)kpa_3, (void)kpa_4, (void)intp_rho, (void)intp_u_1, (void)intp_u_2;
   
   //                                TABLE          ANEOS
   //     KPAQQ=STATE INDICATOR      =1, 1p    =1, 1p    (eos without melt)
@@ -1476,7 +1478,7 @@ INLINE static float SESAME_phase_state_from_internal_energy(
   //                                =-2 bad value of density
   //                                =-3 bad value of material number
 
-  return kpa
+  return kpa;
   
   // if (kpa == 4)
   // {

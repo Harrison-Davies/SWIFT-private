@@ -1211,10 +1211,11 @@ void runner_do_ghost(struct runner *r, struct cell *c, int timer) {
 #ifdef MY_DEF
           /* Add my phase check <harrison>*/
           float T = gas_temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+          (void)T;
           // if (T > 3000.f) {
           //   p->phase_space_flag = 1;
           // }
-          p->phase_space_flag = phase_space_from_internal_energy;
+          // p->phase_space_flag = material_phase_state_from_internal_energy(p->rho_evol, p->u, p->mat_id);  // This should fail as the eos won't have the tables yet
 #endif
 
           /* Are we using the alternative definition of the
