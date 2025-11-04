@@ -110,6 +110,36 @@ material_phase_state_from_internal_energy(
   }
 }
 
+#ifdef MY_DEF
+/**
+ * @brief Returns the KPA flag of our ANEOS material.
+ *
+ * @param density The density \f$\rho\f$
+ * @param u The internal energy \f$u\f$
+ */
+__attribute__((always_inline)) INLINE static float
+KPA_from_internal_energy(
+    const float density, const float u, const enum eos_planetary_material_id mat_id) {
+
+  const enum eos_planetary_type_id type =
+      (enum eos_planetary_type_id)(mat_id / eos_type_factor);
+  const int unit_id = mat_id % eos_type_factor;
+
+  /* Select the material base type */
+  switch (type) {
+
+    /* ANEOS -- using SESAME-style tables */
+    case eos_type_ANEOS:
+      return SESAME_KPA_from_internal_energy(
+          density, u, &eos.all_ANEOS[unit_id]);
+        
+    default:
+      return -1.f;
+  }
+}
+
+#endif
+
 #ifdef MATERIAL_STRENGTH
 
 // Material parameters

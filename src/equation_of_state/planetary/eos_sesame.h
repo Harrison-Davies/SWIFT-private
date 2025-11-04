@@ -1384,114 +1384,129 @@ INLINE static float SESAME_density_from_pressure_and_internal_energy(
 
 // material_phase_state_from_internal_energy
 INLINE static float SESAME_phase_state_from_internal_energy(
-    const float density, const float u, const struct mat_params *SESAME_mat,
-    const struct SESAME_params *SESAME) {
+    const float density, const float u, const struct mat_params *SESAME,
+    const struct SESAME_params *SESAME_eos) {
 
-  float kpa, kpa_1, kpa_2, kpa_3, kpa_4;
-
-  if (u <= 0.f) {
-    return 0.f;
-  }
-
-  int idx_rho, idx_u_1, idx_u_2;
-  float intp_rho, intp_u_1, intp_u_2;
-  const float log_rho = logf(density);
-  const float log_u = logf(u);
-
-  // 2D interpolation (bilinear with log(rho), log(u)) to find c(rho, u))
-  // Density index
-  idx_rho = find_value_in_monot_incr_array(log_rho, SESAME->table_log_rho,
-                                           SESAME->num_rho);
-
-  // Sp. int. energy at this and the next density (in relevant slice of u array)
-  idx_u_1 = find_value_in_monot_incr_array(
-      log_u, SESAME->table_log_u_rho_T + idx_rho * SESAME->num_T,
-      SESAME->num_T);
-  idx_u_2 = find_value_in_monot_incr_array(
-      log_u, SESAME->table_log_u_rho_T + (idx_rho + 1) * SESAME->num_T,
-      SESAME->num_T);
-
-  // If outside the table then extrapolate from the edge and edge-but-one values
-  if (idx_rho <= -1) {
-    idx_rho = 0;
-  } else if (idx_rho >= SESAME->num_rho) {
-    idx_rho = SESAME->num_rho - 2;
-  }
-  if (idx_u_1 <= -1) {
-    idx_u_1 = 0;
-  } else if (idx_u_1 >= SESAME->num_T) {
-    idx_u_1 = SESAME->num_T - 2;
-  }
-  if (idx_u_2 <= -1) {
-    idx_u_2 = 0;
-  } else if (idx_u_2 >= SESAME->num_T) {
-    idx_u_2 = SESAME->num_T - 2;
-  }
-
-  // Check for duplicates in SESAME tables before interpolation
-  if (SESAME->table_log_rho[idx_rho + 1] != SESAME->table_log_rho[idx_rho]) {
-    intp_rho =
-        (log_rho - SESAME->table_log_rho[idx_rho]) /
-        (SESAME->table_log_rho[idx_rho + 1] - SESAME->table_log_rho[idx_rho]);
-  } else {
-    intp_rho = 1.f;
-  }
-  if (SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + (idx_u_1 + 1)] !=
-      SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]) {
-    intp_u_1 =
-        (log_u - SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]) /
-        (SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + (idx_u_1 + 1)] -
-         SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]);
-  } else {
-    intp_u_1 = 1.f;
-  }
-  if (SESAME
-          ->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + (idx_u_2 + 1)] !=
-      SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]) {
-    intp_u_2 =
-        (log_u -
-         SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]) /
-        (SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T +
-                                   (idx_u_2 + 1)] -
-         SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]);
-  } else {
-    intp_u_2 = 1.f;
-  }
-
-  // Table values
-  kpa_1 = SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_u_1];
-  kpa_2 = SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_u_1 + 1];
-  kpa_3 = SESAME->table_KPA_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2];
-  kpa_4 = SESAME->table_KPA_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2 + 1];
-
-  // Just use 1 for now (could pick closest)
-  kpa = kpa_1;
-  (void)kpa_2, (void)kpa_3, (void)kpa_4, (void)intp_rho, (void)intp_u_1, (void)intp_u_2;
-  
-  //                                TABLE          ANEOS
-  //     KPAQQ=STATE INDICATOR      =1, 1p    =1, 1p    (eos without melt)
-  //                                =2, 2p lv =2, 2p liquid/solid plus vapor
-  //                                          =4, 1p solid  (eos with melt)
-  //                                          =5, 2p melt   (eos with melt)
-  //                                          =6, 1p liquid (eos with melt)
-  //                                =-1 bad value of temperature
-  //                                =-2 bad value of density
-  //                                =-3 bad value of material number
-
-  return kpa;
-  
-  // if (kpa == 4)
-  // {
-  //   return mat_phase_state_solid;
-  // } else{
-  //   return mat_phase_state_fluid;
-  // }
-  
-  // I just want it to run for now <harrison>
+  // <harrison> this still gets called with strength toggled off and I need it to run. Not an issue until actually using strength.
   // error("This EOS function is not yet implemented!");
 
-  // return 0.f;
-  // return mat_phase_state_fluid;
+  return 0.f;
+}
+
+
+// KPA flag from internal energy
+INLINE static float SESAME_KPA_from_internal_energy(
+    const float density, const float u, const struct SESAME_params *SESAME) {
+
+  printf("Hello there");
+  const float log_rho = logf(density);
+  const float log_u   = logf(u);
+
+  int idx_rho = find_value_in_monot_incr_array(log_rho, SESAME->table_log_rho, SESAME->num_rho);
+  if (idx_rho < 0) idx_rho = 0;
+  if (idx_rho >= SESAME->num_rho) idx_rho = SESAME->num_rho - 1;
+
+  int idx_T = find_value_in_monot_incr_array(log_u, SESAME->table_log_u_rho_T + idx_rho * SESAME->num_T, SESAME->num_T);
+  if (idx_T < 0) idx_T = 0;
+  if (idx_T >= SESAME->num_T) idx_T = SESAME->num_T - 1;
+
+  printf("General kenobi");
+
+  return (float)SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_T];
+
+  // float kpa, kpa_1, kpa_2, kpa_3, kpa_4;
+
+  // if (u <= 0.f) {
+  //   return 0.f;
+  // }
+
+  // int idx_rho, idx_u_1, idx_u_2;
+  // float intp_rho, intp_u_1, intp_u_2;
+  // const float log_rho = logf(density);
+  // const float log_u = logf(u);
+
+  // // 2D interpolation (bilinear with log(rho), log(u)) to find c(rho, u))
+  // // Density index
+  // idx_rho = find_value_in_monot_incr_array(log_rho, SESAME->table_log_rho,
+  //                                          SESAME->num_rho);
+
+  // // Sp. int. energy at this and the next density (in relevant slice of u array)
+  // idx_u_1 = find_value_in_monot_incr_array(
+  //     log_u, SESAME->table_log_u_rho_T + idx_rho * SESAME->num_T,
+  //     SESAME->num_T);
+  // idx_u_2 = find_value_in_monot_incr_array(
+  //     log_u, SESAME->table_log_u_rho_T + (idx_rho + 1) * SESAME->num_T,
+  //     SESAME->num_T);
+
+  // // If outside the table then extrapolate from the edge and edge-but-one values
+  // if (idx_rho <= -1) {
+  //   idx_rho = 0;
+  // } else if (idx_rho >= SESAME->num_rho) {
+  //   idx_rho = SESAME->num_rho - 2;
+  // }
+  // if (idx_u_1 <= -1) {
+  //   idx_u_1 = 0;
+  // } else if (idx_u_1 >= SESAME->num_T) {
+  //   idx_u_1 = SESAME->num_T - 2;
+  // }
+  // if (idx_u_2 <= -1) {
+  //   idx_u_2 = 0;
+  // } else if (idx_u_2 >= SESAME->num_T) {
+  //   idx_u_2 = SESAME->num_T - 2;
+  // }
+
+  // // Check for duplicates in SESAME tables before interpolation
+  // if (SESAME->table_log_rho[idx_rho + 1] != SESAME->table_log_rho[idx_rho]) {
+  //   intp_rho =
+  //       (log_rho - SESAME->table_log_rho[idx_rho]) /
+  //       (SESAME->table_log_rho[idx_rho + 1] - SESAME->table_log_rho[idx_rho]);
+  // } else {
+  //   intp_rho = 1.f;
+  // }
+  // if (SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + (idx_u_1 + 1)] !=
+  //     SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]) {
+  //   intp_u_1 =
+  //       (log_u - SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]) /
+  //       (SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + (idx_u_1 + 1)] -
+  //        SESAME->table_log_u_rho_T[idx_rho * SESAME->num_T + idx_u_1]);
+  // } else {
+  //   intp_u_1 = 1.f;
+  // }
+  // if (SESAME
+  //         ->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + (idx_u_2 + 1)] !=
+  //     SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]) {
+  //   intp_u_2 =
+  //       (log_u -
+  //        SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]) /
+  //       (SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T +
+  //                                  (idx_u_2 + 1)] -
+  //        SESAME->table_log_u_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2]);
+  // } else {
+  //   intp_u_2 = 1.f;
+  // }
+
+  // // Table values
+  // kpa_1 = SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_u_1];
+  // // kpa_2 = SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_u_1 + 1];
+  // // kpa_3 = SESAME->table_KPA_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2];
+  // // kpa_4 = SESAME->table_KPA_rho_T[(idx_rho + 1) * SESAME->num_T + idx_u_2 + 1];
+
+  // // Just use 1 for now (could pick closest)
+  // kpa = kpa_1;
+  // (void)kpa_2, (void)kpa_3, (void)kpa_4, (void)intp_rho, (void)intp_u_1, (void)intp_u_2;
+
+
+  // //                                TABLE          ANEOS
+  // //     KPAQQ=STATE INDICATOR      =1, 1p    =1, 1p    (eos without melt)
+  // //                                =2, 2p lv =2, 2p liquid/solid plus vapor
+  // //                                          =4, 1p solid  (eos with melt)
+  // //                                          =5, 2p melt   (eos with melt)
+  // //                                          =6, 1p liquid (eos with melt)
+  // //                                =-1 bad value of temperature
+  // //                                =-2 bad value of density
+  // //                                =-3 bad value of material number
+
+  // return kpa;
 }
 
 #endif /* SWIFT_SESAME_EQUATION_OF_STATE_H */

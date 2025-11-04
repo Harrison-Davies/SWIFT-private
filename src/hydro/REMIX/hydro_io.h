@@ -238,7 +238,7 @@ INLINE static void hydro_write_particles(const struct part* parts,
     "Temperatures", FLOAT, 1, UNIT_CONV_TEMPERATURE, 0.f, parts, xparts, 
     convert_part_temp, "Temperatures of the particles");
   list[12] = io_make_output_field(  // Needs better naming <harrison>
-    "Flag", INT, 1, UNIT_CONV_NO_UNITS, 0.f, parts, phase_space_flag, "Phase space flag");
+    "PhaseFlag", INT, 1, UNIT_CONV_NO_UNITS, 0.f, parts, phase_space_flag, "Phase space flag");
 #endif
 
   hydro_write_particles_strength(parts, xparts, list, num_fields);
