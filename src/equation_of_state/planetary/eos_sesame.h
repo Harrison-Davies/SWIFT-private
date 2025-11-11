@@ -1395,10 +1395,9 @@ INLINE static float SESAME_phase_state_from_internal_energy(
 
 
 // KPA flag from internal energy
-INLINE static float SESAME_KPA_from_internal_energy(
+INLINE static int SESAME_KPA_from_internal_energy(
     const float density, const float u, const struct SESAME_params *SESAME) {
 
-  printf("Hello there");
   const float log_rho = logf(density);
   const float log_u   = logf(u);
 
@@ -1410,9 +1409,9 @@ INLINE static float SESAME_KPA_from_internal_energy(
   if (idx_T < 0) idx_T = 0;
   if (idx_T >= SESAME->num_T) idx_T = SESAME->num_T - 1;
 
-  printf("General kenobi");
+  int out = (int)SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_T];
 
-  return (float)SESAME->table_KPA_rho_T[idx_rho * SESAME->num_T + idx_T];
+  return out;
 
   // float kpa, kpa_1, kpa_2, kpa_3, kpa_4;
 

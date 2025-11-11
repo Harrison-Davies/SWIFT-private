@@ -1121,7 +1121,9 @@ __attribute__((always_inline)) INLINE static void eos_init(
     load_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite], eos_file);
     parser_get_param_string(params, "EoS:planetary_ANEOS_forsterite_flag_file",
                             eos_flag_file);
+#ifdef MY_DEF
     load_flag_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite], eos_flag_file);
+#endif
     prepare_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite]);
     convert_units_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite], us);
 
@@ -1138,7 +1140,9 @@ __attribute__((always_inline)) INLINE static void eos_init(
     load_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_iron], eos_file);
     parser_get_param_string(params, "EoS:planetary_ANEOS_iron_flag_file",
                             eos_flag_file);
-    load_flag_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite], eos_flag_file);
+#ifdef MY_DEF
+    load_flag_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_iron], eos_flag_file);
+#endif
     prepare_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_iron]);
     convert_units_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_iron], us);
 
@@ -1155,7 +1159,9 @@ __attribute__((always_inline)) INLINE static void eos_init(
     load_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15], eos_file);
     parser_get_param_string(params, "EoS:planetary_ANEOS_Fe85Si15_flag_file",
                             eos_flag_file);
-    load_flag_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_forsterite], eos_flag_file);
+#ifdef MY_DEF
+    load_flag_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15], eos_flag_file);
+#endif
     prepare_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15]);
     convert_units_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15], us);
 

@@ -121,6 +121,12 @@ int main(int argc, char *argv[]) {
 
   int nr_nodes = 1, myrank = 0;
 
+#ifdef MY_DEF
+  printf("MY_DEF is defined\n");
+#else
+  printf("MY_DEF is NOT defined\n");
+#endif
+
 #ifdef WITH_MPI
   /* Start by initializing MPI. */
   int res = 0, prov = 0;

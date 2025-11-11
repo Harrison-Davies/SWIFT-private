@@ -33,6 +33,15 @@ AC_CONFIG_MACRO_DIR([m4])
 # Generate header file.
 AC_CONFIG_HEADERS([config.h])
 
+# Add MY_DEF <harrison>
+AC_ARG_ENABLE([my-def],
+  [AS_HELP_STRING([--enable-my-def], [Define MY_DEF in config.h])],
+  [enable_my_def=$enableval],
+  [enable_my_def=no])
+
+if test "x$enable_my_def" = "xyes"; then
+  AC_DEFINE([MY_DEF], [1], [Define MY_DEF])
+fi
 
 # Find and test the compiler.
 AX_CHECK_ENABLE_DEBUG
