@@ -54,9 +54,9 @@ hydro_set_pairwise_stress_tensors(float pairwise_stress_tensor_i[3][3],
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (i == j) {
-        // Only include the pressure if it is positive (i.e. not in tension)
-        pairwise_stress_tensor_i[i][i] = -max(pressurei, 0.f);
-        pairwise_stress_tensor_j[i][i] = -max(pressurej, 0.f);
+        // Allow negative pressures (i.e. tension) <harrison>
+        pairwise_stress_tensor_i[i][i] = -pressurei;
+        pairwise_stress_tensor_j[i][i] = -pressurej;
       } else {
         pairwise_stress_tensor_i[i][j] = 0.f;
         pairwise_stress_tensor_j[i][j] = 0.f;

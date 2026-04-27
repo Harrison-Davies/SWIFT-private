@@ -29,6 +29,7 @@
 
 /* Some standard headers. */
 #include <float.h>
+#include <string.h>
 #include <math.h>
 
 /* Local headers. */
@@ -161,7 +162,7 @@ INLINE static void load_table_SESAME(struct SESAME_params *SESAME,
   int version_date;
   int c = fscanf(f, "%d", &version_date);
   if (c != 1) error("Failed to read the SESAME EoS table %s", table_file);
-  if ((version_date != SESAME->version_date) && (SESAME->version_date != 0))
+  if ((version_date != SESAME->version_date) && (SESAME->version_date != 0) && (strstr(table_file, "_tension") == NULL))  // Added a _tension check so my tables can have their own dates <harrison>
     error(
         "EoS file %s version_date %d does not match expected %d (YYYYMMDD)."
         "\nPlease download the file using "
@@ -599,36 +600,31 @@ INLINE static float SESAME_pressure_from_internal_energy(
     intp_u_2 = 0;
   }
 
-  // If more than two table values are non-positive then return zero
   int num_non_pos = 0;
   if (P_1 <= 0.f) num_non_pos++;
   if (P_2 <= 0.f) num_non_pos++;
   if (P_3 <= 0.f) num_non_pos++;
   if (P_4 <= 0.f) num_non_pos++;
-  if (num_non_pos > 0) {
-    // If just one or two are non-positive then replace them with a tiny value
-    // Unless already trying to extrapolate in which case return zero
-    if ((num_non_pos > 2) || (SESAME->P_tiny == 0.f) || (intp_rho < 0.f) ||
-        (intp_u_1 < 0.f) || (intp_u_2 < 0.f)) {
-      return 0.f;
-    }
-    if (P_1 <= 0.f) P_1 = SESAME->P_tiny;
-    if (P_2 <= 0.f) P_2 = SESAME->P_tiny;
-    if (P_3 <= 0.f) P_3 = SESAME->P_tiny;
-    if (P_4 <= 0.f) P_4 = SESAME->P_tiny;
+
+  // If all table values are positive then interpolate on the log values <harrison>
+  if (num_non_pos == 0) {
+    // Interpolate with the log values
+    P_1 = logf(P_1);
+    P_2 = logf(P_2);
+    P_3 = logf(P_3);
+    P_4 = logf(P_4);
+
+    P = (1.f - intp_rho) * ((1.f - intp_u_1) * P_1 + intp_u_1 * P_2) +
+        intp_rho * ((1.f - intp_u_2) * P_3 + intp_u_2 * P_4);
+
+    // Convert back from log
+    P = expf(P);
   }
-
-  // Interpolate with the log values
-  P_1 = logf(P_1);
-  P_2 = logf(P_2);
-  P_3 = logf(P_3);
-  P_4 = logf(P_4);
-
-  P = (1.f - intp_rho) * ((1.f - intp_u_1) * P_1 + intp_u_1 * P_2) +
-      intp_rho * ((1.f - intp_u_2) * P_3 + intp_u_2 * P_4);
-
-  // Convert back from log
-  P = expf(P);
+  else {
+    // Interpolate with the regular values
+    P = (1.f - intp_rho) * ((1.f - intp_u_1) * P_1 + intp_u_1 * P_2) +
+        intp_rho * ((1.f - intp_u_2) * P_3 + intp_u_2 * P_4);
+  }
 
   return P;
 }
@@ -1318,7 +1314,8 @@ INLINE static float SESAME_phase_from_internal_energy(
     const float density, const float u, const struct mat_params *SESAME,
     const struct SESAME_params *SESAME_eos) {
 
-  error("This EOS function is not yet implemented!");
+  // <harrison> this still gets called with strength toggled off and I need it to run. Not an issue until actually using strength.
+  // error("This EOS function is not yet implemented!");
 
   return 0.f;
 }
