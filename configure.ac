@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Init the project.
-AC_INIT([SWIFT],[2025.04],[https://gitlab.cosma.dur.ac.uk/swift/swiftsim])
+AC_INIT([SWIFT],[2025.10],[https://gitlab.cosma.dur.ac.uk/swift/swiftsim])
 swift_config_flags="$*"
 
 AC_COPYRIGHT
@@ -496,38 +496,7 @@ elif test "$no_gravity_below_id" != "no"; then
    AC_DEFINE_UNQUOTED([SWIFT_NO_GRAVITY_BELOW_ID], [$enableval] ,[Particles with smaller ID than this will have zero gravity forces])
 fi
 
-# Check if we want to use boundary particles.
-AC_ARG_ENABLE([boundary-particles],
-   [AS_HELP_STRING([--enable-boundary-particles=<N>],
-     [Set all particles with an ID smaller than @<:@N@:>@ as boundary particles (i.e. receive zero gravity + hydro forces).]
-   )],
-   [boundary_particles="$enableval"],
-   [boundary_particles="no"]
-)
-if test "$boundary_particles" = "yes"; then
-   AC_MSG_ERROR(Need to specify the ID below which particles get zero forces when using --enable-boundary-particles!)
-elif test "$boundary_particles" != "no"; then
-   AC_DEFINE_UNQUOTED([SWIFT_NO_GRAVITY_BELOW_ID], [$enableval] ,[Particles with smaller ID than this will have zero gravity forces])
-   AC_DEFINE_UNQUOTED([SWIFT_BOUNDARY_PARTICLES], [$enableval] ,[Particles with smaller ID than this will be considered as boundaries.])
-fi
-
-# Check if we want to use fixed boundary particles.
-AC_ARG_ENABLE([fixed-boundary-particles],
-   [AS_HELP_STRING([--enable-fixed-boundary-particles=<N>],
-     [Set all particles with an ID smaller than @<:@N@:>@ as fixed boundary particles (i.e. receive zero gravity + hydro forces + zero velocity), this mode enables also --enable-boundary-particles and --enable-no-gravity-below-id.]
-   )],
-   [fixed_boundary_particles="$enableval"],
-   [fixed_boundary_particles="no"]
-)
-if test "$fixed_boundary_particles" = "yes"; then
-   AC_MSG_ERROR(Need to specify the ID below which particles get zero forces when using --enable-boundary-particles!)
-elif test "$fixed_boundary_particles" != "no"; then
-   AC_DEFINE_UNQUOTED([SWIFT_NO_GRAVITY_BELOW_ID], [$enableval] ,[Particles with smaller ID than this will have zero gravity forces])
-   AC_DEFINE_UNQUOTED([SWIFT_BOUNDARY_PARTICLES], [$enableval] ,[Particles with smaller ID than this will be considered as boundaries.])
-   AC_DEFINE_UNQUOTED([SWIFT_FIXED_BOUNDARY_PARTICLES], [$enableval] ,[Particles with smaller ID than this will be considered as boundaries.])
-fi
-
-# Check if fixed entropy is on, e.g. for settling planetary-EoS initial conditions
+# Check if fixed entropy is on for settling planetary initial conditions
 AC_ARG_ENABLE([planetary-fixed-entropy],
    [AS_HELP_STRING([--enable-planetary-fixed-entropy],
      [Force entropies to stay fixed for settling planetary-EoS initial conditions @<:@yes/no@:>@]
@@ -571,7 +540,7 @@ if test "$with_artificial_stress" != "none"; then
          AC_DEFINE([STRENGTH_ARTIFICIAL_STRESS_MON2000], [1], [Mon2000 artificial stress])
       ;;
       *)
-         AC_MSG_ERROR([Unknown strength artificial stress: $with_artificial_stress])
+         AC_MSG_ERROR([Unknown strength artificial stress scheme: $with_artificial_stress])
       ;;
    esac
 fi
@@ -593,7 +562,7 @@ if test "$with_yield_stress" != "none"; then
          AC_DEFINE([STRENGTH_YIELD_STRESS_COLLINS], [1], [Collins yield stress])
       ;;
       *)
-         AC_MSG_ERROR([Unknown yield stress: $with_yield_stress])
+         AC_MSG_ERROR([Unknown yield stress scheme: $with_yield_stress])
       ;;
    esac
 
@@ -641,7 +610,7 @@ if test "$with_damage" != "none"; then
          AC_DEFINE([STRENGTH_DAMAGE_SHEAR_COLLINS], [1], [Collins shear damage])
       ;;
       *)
-         AC_MSG_ERROR([Unknown yield stress: $with_damage])
+         AC_MSG_ERROR([Unknown damage scheme: $with_damage])
       ;;
    esac
 
@@ -2401,9 +2370,6 @@ case "$with_hydro" in
    gasoline)
       AC_DEFINE([GASOLINE_SPH], [1], [Gasoline SPH])
    ;;
-   anarchy-du)
-      AC_DEFINE([SPHENIX_SPH], [1], [SPHENIX SPH])
-   ;;
    anarchy-pu)
       AC_DEFINE([ANARCHY_PU_SPH], [1], [ANARCHY (PU) SPH])
    ;;
@@ -3059,7 +3025,7 @@ esac
 # Forcing terms
 AC_ARG_WITH([forcing],
    [AS_HELP_STRING([--with-forcing=<term>],
-      [Hydrodynamics forcing terms @<:@none, roberts-flow, roberts-flow-acceleration , abc-flowdefault: none@:>@]
+      [Hydrodynamics forcing terms @<:@none, boundary-particles, roberts-flow, roberts-flow-acceleration, abc-flow, default: none@:>@]
    )],
    [with_forcing="$withval"],
    [with_forcing="none"]
@@ -3067,6 +3033,9 @@ AC_ARG_WITH([forcing],
 case "$with_forcing" in
    none)
       AC_DEFINE([FORCING_NONE], [1], [No external forcing terms])
+   ;;
+   boundary-particles)
+      AC_DEFINE([FORCING_BOUNDARY_PARTICLES], [1], [Boundary particles])
    ;;
    roberts-flow)
       AC_DEFINE([FORCING_ROBERTS_FLOW], [1], [Roberts' flow external forcing terms])
@@ -3391,6 +3360,13 @@ AM_CONDITIONAL([HAVEEAGLEFLOOR], [test "$with_entropy_floor" = "EAGLE"])
 # check if using gear feedback
 AM_CONDITIONAL([HAVEGEARFEEDBACK], [test "$with_feedback" = "GEAR"])
 
+# Check for GEAR and GEAR_MECHANICAL feedback flags to set the common files
+# variable
+AS_IF([test "$with_feedback" = "GEAR"],
+  [common_gear_needed=yes],
+  [common_gear_needed=no])
+AM_CONDITIONAL([COMMON_GEAR_NEEDED], [test "x$common_gear_needed" = "xyes"])
+
 # check if using gear feedback
 AM_CONDITIONAL([HAVEAGORAFEEDBACK], [test "$with_feedback" = "AGORA"])
 
@@ -3545,8 +3521,6 @@ AC_MSG_RESULT([
    Naive stars interactions    : $enable_naive_interactions_stars
    Gravity checks              : $gravity_force_checks
    Custom icbrtf               : $enable_custom_icbrtf
-   Boundary particles          : $boundary_particles
-   Fixed boundary particles    : $fixed_boundary_particles
    Planetary fixed entropy     : $planetary_fixed_entropy
    Material strength           : $material_strength
    Ghost statistics            : $ghost_stats

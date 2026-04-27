@@ -69,7 +69,7 @@ struct xpart {
   float rho_evol_full;
 
   /*! Phase state flag at the last full step. */
-  enum mat_phase_state phase_state_full;
+  enum mat_phase phase_full;
  
   /*! Additional data used by the strength scheme */
   struct strength_xpart_data strength_data;
@@ -107,7 +107,7 @@ struct part {
   long long id;
 
   /*! Pointer to corresponding gravity part. */
-  struct gpart* gpart;
+  struct gpart *gpart;
 
 #ifdef MY_DEF
   /*! Custom flag, needs a better name and to be moved lower <harrison> */
@@ -294,7 +294,7 @@ struct part {
   enum eos_planetary_material_id mat_id;
 
   /*! Phase state flag */
-  enum mat_phase_state phase_state;
+  enum mat_phase phase;
 
   /*! Additional Radiative Transfer Data */
   struct rt_part_data rt_data;

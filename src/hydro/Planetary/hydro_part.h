@@ -73,8 +73,8 @@ struct xpart {
   /*! Internal energy at the last full step. */
   float u_full;
 
-  /*! Phase state flag at the last full step. */
-  enum mat_phase_state phase_state_full;
+  /*! Phase flag at the last full step. */
+  enum mat_phase phase_full;
 
   /*! Additional data used by the strength scheme */
   struct strength_xpart_data strength_data;
@@ -112,7 +112,7 @@ struct part {
   long long id;
 
   /*! Pointer to corresponding gravity part. */
-  struct gpart* gpart;
+  struct gpart *gpart;
 
   /*! Particle position. */
   double x[3];
@@ -221,8 +221,8 @@ struct part {
   /*! Material identifier flag */
   enum eos_planetary_material_id mat_id;
 
-  /*! Phase state flag */
-  enum mat_phase_state phase_state;
+  /*! Phase flag */
+  enum mat_phase phase;
 
   /*! Additional Radiative Transfer Data */
   struct rt_part_data rt_data;

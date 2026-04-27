@@ -26,7 +26,7 @@
  */
 
 #include "math.h"
-#include "symmetric_matrix.h"
+#include <string.h>
 
 /**
  * @brief Computes the J_2 invariant of a deviatoric symmetric tensor.
@@ -215,8 +215,7 @@ strength_evolve_rotation_tensor(float rotation_tensor[3][3], const float rotatio
   const float theta = omega_mag * dt;
 
   /* Return to avoid division by 0. */
-  // ### Test what number to use in this if statement
-  if (theta < 1e-8) {
+  if (theta <= 0.f) {
     return;
   }
 
@@ -241,12 +240,14 @@ strength_evolve_rotation_tensor(float rotation_tensor[3][3], const float rotatio
     }
   }
 
-  /* Compute Rodrigues' rotation formula expression for exp(theta): I + sinθ N + (1 - cosθ) N^2. */
+  /* Compute Rodrigues' rotation formula expression for exp(theta): I + sin(theta) N + (1 - cos(theta)) N^2. */
+  const float sin_theta = sinf(theta);
+  const float one_minus_cos_theta = 1.f - cosf(theta);
   float matrix_exp_theta[3][3] = {{0.f}};
   for (int i = 0; i < 3; i++) {
     matrix_exp_theta[i][i] += 1.f;
     for (int j = 0; j < 3; j++) {
-          matrix_exp_theta[i][j] += sinf(theta) * N[i][j] + (1.f - cosf(theta)) * N2[i][j];
+      matrix_exp_theta[i][j] += sin_theta * N[i][j] + one_minus_cos_theta * N2[i][j];
     }
   }
 
@@ -255,7 +256,7 @@ strength_evolve_rotation_tensor(float rotation_tensor[3][3], const float rotatio
   memcpy(prev_rotation_tensor, rotation_tensor, 3 * 3 * sizeof(float));
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-    rotation_tensor[i][j] = 0.f;
+      rotation_tensor[i][j] = 0.f;
       for (int k = 0; k < 3; k++) {
         rotation_tensor[i][j] += matrix_exp_theta[i][k] * prev_rotation_tensor[k][j];
       }

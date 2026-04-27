@@ -26,8 +26,6 @@
  */
 
 #include "const.h"
-#include "equation_of_state.h"
-#include "hydro_parameters.h"
 #include "math.h"
 
 /**
@@ -35,8 +33,8 @@
  *
  * Empty function when configuring without artificial stress.
  *
- * @param pairwise_stress_tensor_i Stress tensor of particle i for its interactiion with j.
- * @param pairwise_stress_tensor_j Stress tensor of particle j for its interactiion with i.
+ * @param pairwise_stress_tensor_i Stress tensor of particle i for its interaction with j.
+ * @param pairwise_stress_tensor_j Stress tensor of particle j for its interaction with i.
  * @param pi First particle.
  * @param pj Second particle.
  * @param r The particle separation.

@@ -26,8 +26,6 @@
  */
 
 #include "const.h"
-#include "equation_of_state.h"
-#include "hydro_parameters.h"
 #include "math.h"
 
 /**
@@ -70,7 +68,7 @@ __attribute__((always_inline)) INLINE static void damage_set_tensile_damage_full
  * @param tensile_cbrtD_dt The rate of tensile cbrt(damage) accumulation.
  * @param number_of_activated_flaws The number of currently-active flaws.
  * @param number_of_flaws The total number of flaws.
- * @param activation_thresholds The activation thresholds fo flaws.
+ * @param activation_thresholds The activation thresholds of flaws.
  * @param stress_tensor The stress tensor.
  * @param mat_id The material ID.
  * @param mass The particle mass.
@@ -79,22 +77,12 @@ __attribute__((always_inline)) INLINE static void damage_set_tensile_damage_full
  */
 __attribute__((always_inline)) INLINE static void damage_tensile_compute_cbrtD_dt(
     float *tensile_cbrtD_dt, int *number_of_activated_flaws,  const int number_of_flaws, const float activation_thresholds[40], // ### Change this length
-    const struct sym_matrix stress_tensor, const int mat_id, const float mass, const float density, const float damage) {}
+    const struct sym_matrix stress_tensor, const int mat_id, const float mass, const float density, const float damage) {
 
-/**
- * @brief Calculates the rate of damage accumulation due to tension
- *
- * @param tensile_dD_dt The rate of tensile damage accumulation.
- * @param p The particle of interest.
- * @param stress_tensor The stress tensor.
- * @param mat_id The material ID.
- * @param mass The particle mass.
- * @param density The density.
- * @param damage The damage.
- * @param tensile_damage The tensile damage.
- */
-__attribute__((always_inline)) INLINE static void damage_tensile_compute_dD_dt(
-    float *tensile_dD_dt, struct part *restrict p,  const struct sym_matrix stress_tensor, const int mat_id, const float mass, const float density, const float damage, const float tensile_damage) {}
+      /* Set the rate of tensile cbrt(damage) accumulation to zero and number of activated flaws to zero */
+      *tensile_cbrtD_dt = 0.f;
+      *number_of_activated_flaws = 0;
+    }
 
 /**
  * @brief Steps tensile damage by applying time-step to a tensile_cbrtD_dt.

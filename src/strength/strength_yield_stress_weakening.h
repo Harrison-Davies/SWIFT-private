@@ -25,7 +25,6 @@
  * @brief Methods for applying weakening to the yield stress.
  */
 
-#include "equation_of_state.h"
 #include "math.h"
 
 /**
@@ -33,9 +32,7 @@
  *
  * Weaken the material's yield stress as its temperature approaches the
  * melting temperature. This method is presented by Ohnaka1995, and
- * is used by e.g. Collins+2004 and Emsenhuber+2018. Note that we do not
- * set the yield stress to 0 here when the temperature exceeds the melting
- * temperature; this is handled elsewhere based on the material's phase state.
+ * is used by e.g. Collins+2004 and Emsenhuber+2018.
  *
  * Method parameters needed in material parameter file:
  * Strength:
@@ -45,23 +42,23 @@
  *
  * @param Y The yield stress to be weakened.
  * @param mat_id The material ID.
- * @param density The density.
  * @param u The specific internal energy.
  */
 __attribute__((always_inline)) INLINE static void
 yield_weakening_apply_temperature_to_yield_stress(float *Y, const int mat_id,
                                    const float density, const float u) {
 #ifdef STRENGTH_YIELD_STRESS_WEAKENING_THERMAL
-  /* Calculate temperature. */
-  const float temperature =
-        gas_temperature_from_internal_energy(density, u, mat_id);
-
   /* Method parameters. */
   const float xi = method_yield_weakening_thermal_xi();
   const float T_melt = material_T_melt(mat_id);
+  const float temperature = gas_temperature_from_internal_energy(density, u, mat_id);
 
   /* Apply weakening. */
-  *Y *= tanhf(xi * (T_melt / temperature - 1.f));
+  if (temperature > 0.f && temperature < T_melt) {
+    *Y *= tanhf(xi * (T_melt / temperature - 1.f));
+  } else if (temperature >= T_melt) {
+    *Y = 0.f;
+  }
 #endif /* STRENGTH_YIELD_STRESS_WEAKENING_THERMAL */
 }
 

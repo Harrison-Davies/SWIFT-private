@@ -26,8 +26,6 @@
  */
 
 #include "const.h"
-#include "equation_of_state.h"
-#include "hydro_parameters.h"
 #include "math.h"
 
 /**
@@ -77,7 +75,7 @@ __attribute__((always_inline)) INLINE static void damage_set_tensile_damage_full
  * number of flaws, each with a corresponding activation threshold. A flaw is
  * activated if the local strain exceeds its activation threshold. Tensile
  * damage accumulates in a particle based on the number of curently-active flaws
- *  and an estimate of the crack velocity.
+ * and an estimate of the crack velocity.
  *
  * Method parameters needed in material parameter file:
  * Strength:
@@ -99,20 +97,23 @@ __attribute__((always_inline)) INLINE static void damage_tensile_compute_cbrtD_d
     const struct sym_matrix stress_tensor, const int mat_id, const float mass, const float density, const float damage) {
 
   *tensile_cbrtD_dt = 0.f;
+  *number_of_activated_flaws = 0;
 
   /* Tensile damage will only accumulate if a particle has flaws. */
   if (number_of_flaws == 0) {
     return;
   }
 
+  /* If damage is already 1, no accumulation. */
+  if (damage == 1.f) {
+    return;
+  }
+
   /* Calculate maximum principal stress. */
   float principal_stress_eigen[3];
   sym_matrix_compute_eigenvalues(principal_stress_eigen, stress_tensor);
-  float max_principal_stress = principal_stress_eigen[0];
-  if (principal_stress_eigen[1] > max_principal_stress)
-    max_principal_stress = principal_stress_eigen[1];
-  if (principal_stress_eigen[2] > max_principal_stress)
-    max_principal_stress = principal_stress_eigen[2];
+  const float max_principal_stress = fmaxf(principal_stress_eigen[0],
+                                      fmaxf(principal_stress_eigen[1], principal_stress_eigen[2]));
 
   /* Tensile damage will only accumulate if particle is in tension. */
   if (max_principal_stress <= 0.f) {
@@ -130,7 +131,7 @@ __attribute__((always_inline)) INLINE static void damage_tensile_compute_cbrtD_d
   /* The number of activated flaws is defined as the number of flaws for which
    * the local scalar strain has reached or exceeded the flaw's activation
    * threshold. */
-  *number_of_activated_flaws = 0;
+  // ### this can be done nicer if we sort thresholds in order and then break in this loop
   for (int i = 0; i < number_of_flaws; i++) {
     if (local_scalar_strain > activation_thresholds[i]) {
       *number_of_activated_flaws += 1;
@@ -148,39 +149,6 @@ __attribute__((always_inline)) INLINE static void damage_tensile_compute_cbrtD_d
 }
 
 /**
- * @brief Calculates the rate of damage accumulation due to tension
- *
- * @param tensile_dD_dt The rate of tensile damage accumulation.
- * @param p The particle of interest.
- * @param stress_tensor The stress tensor.
- * @param mat_id The material ID.
- * @param mass The particle mass.
- * @param density The density.
- * @param damage The damage.
- * @param tensile_damage The tensile damage.
- */
-__attribute__((always_inline)) INLINE static void damage_tensile_compute_dD_dt(
-    float *tensile_dD_dt, struct part *restrict p, const struct sym_matrix stress_tensor, const int mat_id, const float mass, const float density, const float damage, const float tensile_damage) {
-
-  /* Particle flaws and their thresholds. */
-  const float number_of_flaws = p->strength_data.number_of_flaws;
-  float activation_thresholds[40]; //###
-  memcpy(activation_thresholds, p->strength_data.activation_thresholds, sizeof(activation_thresholds));
-
-  /* Compute the rate of cbrt(damage) accumulation due to tension. */
-  float tensile_cbrtD_dt = 0.f;
-  int number_of_activated_flaws = 0;
-  damage_tensile_compute_cbrtD_dt(&tensile_cbrtD_dt, &number_of_activated_flaws, number_of_flaws,
-                               activation_thresholds, stress_tensor, mat_id, mass, density, damage);
-
-  /* Tensile damage is limited by the fraction of activated to total flaws. */
-  if (tensile_damage < (float)number_of_activated_flaws / (float)number_of_flaws) {
-    /* Chain rule d(D^(1/3))/dt = d(D^(1/3))/dD * dD/dt. */
-    *tensile_dD_dt = 3.f * powf(tensile_damage, 2.f / 3.f) * tensile_cbrtD_dt;
-  }
-}
-
-/**
  * @brief Steps tensile damage by applying time-step to a tensile_cbrtD_dt.
  *
  * @param tensile_damage The tensile damage.
@@ -193,12 +161,16 @@ __attribute__((always_inline)) INLINE static void damage_tensile_apply_timestep_
     float *tensile_damage, const float tensile_cbrtD_dt,
     const int number_of_activated_flaws, const int number_of_flaws, const float dt_therm) {
 
-  // ### Can this be simplified based on damage_tensile_compute_dD_dt?
+
+    if (number_of_flaws == 0 || tensile_cbrtD_dt <= 0.f) {
+      return;
+    }
 
   /* Apply time-step. */
   float Delta_cbrtD = tensile_cbrtD_dt * dt_therm;
 
   /* Tensile damage is limited by the fraction of activated to total flaws. */
+  /* See B&A99 and also Schafer16 for correction of cbrt placement here */
   const float max_cbrtD =
       cbrtf((float)number_of_activated_flaws / (float)number_of_flaws);
   const float max_Delta_cbrtD =
@@ -209,7 +181,7 @@ __attribute__((always_inline)) INLINE static void damage_tensile_apply_timestep_
 
   /* Update tensile damage. */
   const float evolved_D_cbrt = cbrtf(*tensile_damage) + Delta_cbrtD;
-  *tensile_damage = powf(evolved_D_cbrt, 3.f);
+  *tensile_damage = fminf(powf(evolved_D_cbrt, 3.f), 1.f);
 }
 
 /**
@@ -231,8 +203,8 @@ __attribute__((always_inline)) INLINE static void damage_tensile_evolve(
     const float mass, const float density, const float damage, const float dt_therm) {
 
   /* Particle flaws and their thresholds. */
-  const float number_of_flaws = p->strength_data.number_of_flaws;
-  float activation_thresholds[40];
+  const int number_of_flaws = p->strength_data.number_of_flaws;
+  float activation_thresholds[40]; // ### hardcoded length
   memcpy(activation_thresholds, p->strength_data.activation_thresholds, sizeof(activation_thresholds));
 
   float tensile_cbrtD_dt;

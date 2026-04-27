@@ -26,10 +26,8 @@
  */
 
 #include "const.h"
-#include "equation_of_state.h"
-#include "hydro_parameters.h"
+#include <float.h>
 #include "math.h"
-#include "strength.h"
 
 /**
  * @brief Get damage of particle at last drift time.
@@ -84,11 +82,11 @@ __attribute__((always_inline)) INLINE static void strength_set_damage_full(struc
 __attribute__((always_inline)) INLINE static void strength_compute_timestep_damage(
     float *dt_cfl, const struct part *restrict p) {
 
-  const float dD_dt = p->strength_data.dD_dt;
+  const float damage_accumulation_timescale = p->strength_data.damage_accumulation_timescale;
   const float damage_timestep_factor = 0.01f; // ### Hardcoded for now. Treat this similarly to CFL
 
-  if (dD_dt * *dt_cfl > damage_timestep_factor) {
-    *dt_cfl = damage_timestep_factor / dD_dt;
+  if (*dt_cfl > damage_timestep_factor * damage_accumulation_timescale) {
+    *dt_cfl = damage_timestep_factor * damage_accumulation_timescale;
   }
 }
 
@@ -109,15 +107,10 @@ __attribute__((always_inline)) INLINE static void damage_compute_stress_tensor(
 
   /* Damage weakens negative pressures so that fully damaged material cannot be
    * in tension. */
-  if (pressure < 0.f) {
-    stress_tensor->xx -= (1.f - damage) * pressure;
-    stress_tensor->yy -= (1.f - damage) * pressure;
-    stress_tensor->zz -= (1.f - damage) * pressure;
-  } else {
-    stress_tensor->xx -= pressure;
-    stress_tensor->yy -= pressure;
-    stress_tensor->zz -= pressure;
-  }
+  const float effective_pressure = pressure > 0.f ? pressure : (1.f - damage) * pressure;
+  stress_tensor->xx -= effective_pressure;
+  stress_tensor->yy -= effective_pressure;
+  stress_tensor->zz -= effective_pressure;
 }
 
 /**
@@ -230,7 +223,7 @@ __attribute__((always_inline)) INLINE static void damage_kick_evolve(
 }
 
 /**
- * @brief Calculate time derivative of damage.
+ * @brief Calculate timescale of damage accumulation.
  *
  * @param p The particle of interest.
  * @param stress_tensor The stress tensor.
@@ -239,20 +232,45 @@ __attribute__((always_inline)) INLINE static void damage_kick_evolve(
  * @param density The density.
  * @param u The specific internal energy.
  */
-__attribute__((always_inline)) INLINE static void damage_compute_dD_dt(
+__attribute__((always_inline)) INLINE static void damage_compute_timescale(
     struct part *restrict p, const struct sym_matrix stress_tensor,
     const int mat_id, const float mass, const float density, const float u) {
 
   /* Damage parameters set to values at drift time. */
-  const float damage = strength_get_damage(p);
   const float tensile_damage = damage_get_tensile_damage(p);
+  const float damage = strength_get_damage(p);
 
-  /* Compute tensile dD/dt. */
-  float tensile_dD_dt = 0.f;
-  damage_tensile_compute_dD_dt(&tensile_dD_dt, p, stress_tensor, mat_id, mass, density, damage, tensile_damage);
+  /* If full tensile damage or full damage, no accumulation. */
+  if (tensile_damage == 1.f || damage == 1.f) {
+      p->strength_data.damage_accumulation_timescale = FLT_MAX;
+      return;
+  }
 
-  /* Combine sources of Dd/dt. */
-  p->strength_data.dD_dt = tensile_dD_dt;
+  /* Compute tensile contribution. */
+  float tensile_cbrtD_dt = 0.f;
+  int number_of_activated_flaws = 0;
+  damage_tensile_compute_cbrtD_dt(&tensile_cbrtD_dt,
+                                  &number_of_activated_flaws,
+                                  p->strength_data.number_of_flaws,
+                                  p->strength_data.activation_thresholds,
+                                  stress_tensor,
+                                  mat_id,
+                                  mass,
+                                  density,
+                                  damage); // ### Should this be damage or tensile_damage?
+
+  /* If no active flaws or zero accumulation, no timescale. */
+  if (tensile_cbrtD_dt <= 0.f || number_of_activated_flaws == 0) {
+      p->strength_data.damage_accumulation_timescale = FLT_MAX;
+      return;
+  }
+
+  /* Compute the limiting timescale for tensile damage accumulation. */
+  const float damage_scale = 1.f;
+  p->strength_data.damage_accumulation_timescale = damage_scale / tensile_cbrtD_dt;
+
+  // ### If we also have a shear damage timescale, we would need to compute that and then take the minimum of the two timescales here.
+  // ### That might be harder to do because of the way the delta damage is calculated directly rather than a time drivative
 }
 
 /**
