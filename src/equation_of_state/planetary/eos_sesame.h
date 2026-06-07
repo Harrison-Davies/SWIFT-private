@@ -1315,7 +1315,7 @@ INLINE static float SESAME_phase_from_internal_energy(
     const struct SESAME_params *SESAME_eos) {
 
   // <harrison> this still gets called with strength toggled off and I need it to run. Not an issue until actually using strength.
-  error("This EOS function is not yet implemented!");
+  // error("This EOS function is not yet implemented!");
 
   return 0.f;
 }
