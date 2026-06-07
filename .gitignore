@@ -2,6 +2,9 @@
 *.hdf5
 *.dirstamp
 
+## Explicitely include ANEOS EOSTables
+!examples/Planetary/EoSTables/ANEOS_*
+
 Makefile
 Makefile.in
 INSTALL
