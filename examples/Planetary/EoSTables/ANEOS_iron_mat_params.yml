@@ -6,10 +6,10 @@ Material:
 
 # General material strength parameters
 Strength:
-    shear_mod:      81.1e9     # Shear modulus (Pa)
-    bulk_mod:       110e9      # Bulk modulus (Pa)
-    T_melt:         5110.9     # Melting temperature (K)
-    rho_0:          3220       # (kg m^-3)
+    shear_mod:      81.44e9    # Shear modulus (Pa)
+    bulk_mod:       151e9      # Bulk modulus (Pa)
+    T_melt:         5471.9     # Melting temperature (K)
+    rho_0:          8060       # (kg m^-3)
 
 
 # Specific material-strength schemes

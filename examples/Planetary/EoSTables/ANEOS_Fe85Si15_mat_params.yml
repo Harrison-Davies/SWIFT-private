@@ -2,14 +2,14 @@
 
 # General properties
 Material:
-    state_type:    1               # Base phase state: fluid=0, solid=1, variable=2
+    state_type:    2               # Base phase state: fluid=0, solid=1, variable=2
 
 # General material strength parameters
 Strength:
-    shear_mod:      22.7e9     # Shear modulus (Pa)
-    bulk_mod:       26.7e9     # Bulk modulus (Pa)
-    T_melt:         0          # Melting temperature (K)
-    rho_0:          2700       # (kg m^-3)
+    shear_mod:      81.44e9    # Shear modulus (Pa)
+    bulk_mod:       151e9      # Bulk modulus (Pa)
+    T_melt:         5032.7     # Melting temperature (K)
+    rho_0:          7510       # (kg m^-3)
 
 
 # Specific material-strength schemes

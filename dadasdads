@@ -1,0 +1,10 @@
+[33md62ebbad7[m[33m ([m[1;36mHEAD -> [m[1;32mplanetary_mix_strength[m[33m, [m[1;31morigin/planetary_mix_strength[m[33m)[m Strength impact example
+[33ma2bddc10d[m Tension support
+[33mb429ca12b[m[33m ([m[1;31mupstream/planetary_mix_strength[m[33m)[m Add vibrating plate example
+[33mdf93bf722[m Tidy basalt sphere example
+[33m04ba4cbbb[m Add fluid solid impact example
+[33m2842e7b8e[m Tidy aluminium impact example
+[33m518bc25a7[m Add fluid solid example
+[33m5541c98b8[m Tidy rubber cylinders example
+[33mf3ba523c9[m Update elastic timestep
+[33m5a96aabad[m Tidy strength utils and extra tests
