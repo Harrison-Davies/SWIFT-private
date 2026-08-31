@@ -128,12 +128,34 @@ __attribute__((always_inline)) INLINE static float material_bulk_mod(
   return eos.all_mat_params[mat_index].bulk_mod;
 }
 
-/** @brief Returns the melting temperature of a material */
-__attribute__((always_inline)) INLINE static float material_T_melt(
+/** @brief Returns the simon approximation T_m0 parameter of a material */
+__attribute__((always_inline)) INLINE static float material_simon_T_m0(
     const enum eos_planetary_material_id mat_id) {
   const int mat_index = material_index_from_mat_id(mat_id);
-  return eos.all_mat_params[mat_index].T_melt;
+  return eos.all_mat_params[mat_index].T_m0;
 }
+
+/** @brief Returns the simon approximation a parameter of a material */
+__attribute__((always_inline)) INLINE static float material_simon_a(
+    const enum eos_planetary_material_id mat_id) {
+  const int mat_index = material_index_from_mat_id(mat_id);
+  return eos.all_mat_params[mat_index].a;
+}
+
+/** @brief Returns the simon approximation c parameter of a material */
+__attribute__((always_inline)) INLINE static float material_simon_c(
+    const enum eos_planetary_material_id mat_id) {
+  const int mat_index = material_index_from_mat_id(mat_id);
+  return eos.all_mat_params[mat_index].c;
+}
+
+  /** @brief Returns the melting temperature of a material */
+  __attribute__((always_inline)) INLINE static float material_T_melt(
+      const enum eos_planetary_material_id mat_id) {
+    const int mat_index = material_index_from_mat_id(mat_id);
+    return eos.all_mat_params[mat_index].T_melt;
+  }
+
 
 /** @brief Returns the rho_0 of a material */
 __attribute__((always_inline)) INLINE static float material_rho_0(

@@ -10,6 +10,9 @@ Strength:
     bulk_mod:       151e9      # Bulk modulus (Pa)
     T_melt:         5032.7     # Melting temperature (K)
     rho_0:          7510       # (kg m^-3)
+    T_m0:           1600.0     # K    
+    a:              13.04e9    # Pa
+    c:              2.68
 
 
 # Specific material-strength schemes

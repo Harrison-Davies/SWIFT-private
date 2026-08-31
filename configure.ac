@@ -572,6 +572,18 @@ if test "$strength_yield_stress_weakening_thermal" = "yes"; then
    AC_DEFINE([STRENGTH_YIELD_STRESS_WEAKENING_THERMAL],1,[Enable thermal weakening of yield stress])
 fi
 
+#  Strength: simon approximation
+AC_ARG_ENABLE([simon-approximation-melt],
+   [AS_HELP_STRING([--enable-simon-approximation-melt],
+     [Enable Simon approximation for melt temperature @<:@yes/no@:>@]
+   )],
+   [simon_approximation_melt="$enableval"],
+   [simon_approximation_melt="no"]
+)
+if test "$simon_approximation_melt" = "yes"; then
+   AC_DEFINE([SIMON_APPROXIMATION_MELT],1,[Enable Simon approximation for melt temperature])
+fi
+
 #  Strength: yield stress weakening: density 
 AC_ARG_ENABLE([strength-yield-stress-weakening-density],
    [AS_HELP_STRING([--enable-strength-yield-stress-weakening-density],

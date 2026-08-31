@@ -261,6 +261,9 @@ struct mat_params {
   float bulk_mod;
   float T_melt;
   float rho_0;
+  float T_m0;
+  float a;
+  float c;
 
   #if defined(STRENGTH_YIELD_STRESS_BENZ_ASPHAUG)
     float Y_0;

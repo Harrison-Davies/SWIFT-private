@@ -28,6 +28,26 @@
 #include "math.h"
 
 /**
+ * @brief Get the melt temperature.
+ * 
+ * Either fetch the fixed melt temperature or calculate the melt temperature 
+ * by the Simon approximation (following Collins2016 /iSALE manual).
+ */
+__attribute__((always_inline)) INLINE static float
+get_T_melt(const float density, const float u, const int mat_id) {
+  #ifdef SIMON_APPROXIMATION_MELT
+    const float pressure = gas_pressure_from_internal_energy(density, u, mat_id);
+    const float T_m0 = material_simon_T_m0(mat_id);
+    const float a = material_simon_a(mat_id);
+    const float c = material_simon_c(mat_id);
+
+    return T_m0 * powf(pressure / a + 1.f, 1.f / c);
+  #else
+    return material_T_melt(mat_id);
+  #endif
+}
+
+/**
  * @brief Apply thermal weakening to the yield stress.
  *
  * Weaken the material's yield stress as its temperature approaches the
@@ -50,7 +70,7 @@ yield_weakening_apply_temperature_to_yield_stress(float *Y, const int mat_id,
 #ifdef STRENGTH_YIELD_STRESS_WEAKENING_THERMAL
   /* Method parameters. */
   const float xi = method_yield_weakening_thermal_xi();
-  const float T_melt = material_T_melt(mat_id);
+  const float T_melt = get_T_melt(density, u, mat_id);
   const float temperature = gas_temperature_from_internal_energy(density, u, mat_id);
 
   /* Apply weakening. */

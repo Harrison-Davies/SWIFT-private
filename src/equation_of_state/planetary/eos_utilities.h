@@ -190,10 +190,21 @@ INLINE static void set_material_params(struct mat_params *all_mat_params,
       parser_get_opt_param_float(file_params, "Strength:shear_mod", 0.f);
   mat_params->bulk_mod =
       parser_get_opt_param_float(file_params, "Strength:bulk_mod", 0.f);
-  mat_params->T_melt =
-      parser_get_opt_param_float(file_params, "Strength:T_melt", 0.f);
+  # if defined(SIMON_APPROXIMATION_MELT)
+    mat_params->T_m0 =
+        parser_get_opt_param_float(file_params, "Strength:T_m0", 0.f);
+    mat_params->a =
+        parser_get_opt_param_float(file_params, "Strength:a", 0.f);
+    mat_params->c =
+        parser_get_opt_param_float(file_params, "Strength:c", 0.f);
+  #else
+    mat_params->T_melt =
+        parser_get_opt_param_float(file_params, "Strength:T_melt", 0.f);
+  #endif
   mat_params->rho_0 =
       parser_get_opt_param_float(file_params, "Strength:rho_0", 0.f);
+    
+
 
 
   // Specific EoS-independent constants for material-strength schemes
