@@ -20,6 +20,20 @@
 #ifndef SWIFT_PLANETARY_EOS_UTILITIES_H
 #define SWIFT_PLANETARY_EOS_UTILITIES_H
 
+
+/**
+ * Forward declarations. I'm not sure if there is a better way to do this <harrison>
+ * (eos_sesame.h calls get_T_melt before it is declared, get_T_melt calls the others)
+ */
+static INLINE float get_T_melt(const float density, const float u,
+                                const enum eos_planetary_material_id mat_id);
+static INLINE float gas_pressure_from_internal_energy(
+    const float density, const float u,
+    const enum eos_planetary_material_id mat_id);
+static INLINE float material_simon_T_m0(const enum eos_planetary_material_id mat_id);
+static INLINE float material_simon_a(const enum eos_planetary_material_id mat_id);
+static INLINE float material_simon_c(const enum eos_planetary_material_id mat_id);
+
 /**
  * @file equation_of_state/planetary/eos_utilities.h
  *
@@ -27,6 +41,7 @@
  */
 
 /* Local headers. */
+#include "equation_of_state.h"
 #include "eos_hm80.h"
 #include "eos_ideal_gas.h"
 #include "eos_linear.h"
@@ -190,7 +205,7 @@ INLINE static void set_material_params(struct mat_params *all_mat_params,
       parser_get_opt_param_float(file_params, "Strength:shear_mod", 0.f);
   mat_params->bulk_mod =
       parser_get_opt_param_float(file_params, "Strength:bulk_mod", 0.f);
-  # if defined(SIMON_APPROXIMATION_MELT)
+  #if defined(SIMON_APPROXIMATION_MELT)
     mat_params->T_m0 =
         parser_get_opt_param_float(file_params, "Strength:T_m0", 0.f);
     mat_params->a =
@@ -200,7 +215,7 @@ INLINE static void set_material_params(struct mat_params *all_mat_params,
   #else
     mat_params->T_melt =
         parser_get_opt_param_float(file_params, "Strength:T_melt", 0.f);
-  #endif
+  #endif /* SIMON_APPROXIMATION_MELT */
   mat_params->rho_0 =
       parser_get_opt_param_float(file_params, "Strength:rho_0", 0.f);
     
@@ -256,6 +271,29 @@ INLINE static void set_material_params(struct mat_params *all_mat_params,
   // Convert units
   convert_units_material_params(mat_params, method_params, us);
 
+}
+
+/**
+ * @brief Get the melt temperature.
+ * 
+ * Either fetch the fixed melt temperature or calculate the melt temperature 
+ * by the Simon approximation (following Collins2016 / iSALE manual).
+ */
+__attribute__((always_inline)) INLINE static float
+get_T_melt(const float density, const float u,
+           const enum eos_planetary_material_id mat_id) {
+#ifdef MATERIAL_STRENGTH
+#ifdef SIMON_APPROXIMATION_MELT
+  const float pressure = gas_pressure_from_internal_energy(density, u, mat_id);
+  const float T_m0 = material_simon_T_m0(mat_id);
+  const float a = material_simon_a(mat_id);
+  const float c = material_simon_c(mat_id);
+
+  return T_m0 * powf(pressure / a + 1.f, 1.f / c);
+#else
+  return material_T_melt(mat_id);
+#endif /* SIMON_APPROXIMATION_MELT */
+#endif /* MATERIAL_STRENGTH */
 }
 
 #endif /* SWIFT_PLANETARY_EOS_UTILITIES_H */

@@ -1314,10 +1314,31 @@ INLINE static float SESAME_phase_from_internal_energy(
     const float density, const float u, const struct mat_params *SESAME,
     const struct SESAME_params *SESAME_eos) {
 
-  // <harrison> this still gets called with strength toggled off and I need it to run. Not an issue until actually using strength.
-  // error("This EOS function is not yet implemented!");
+  #ifdef MATERIAL_STRENGTH
+    switch (SESAME->state_type) {
+      case mat_state_type_fluid:
+        return mat_phase_fluid;
 
-  return 0.f;
-}
+      case mat_state_type_solid:
+        return mat_phase_solid;
+
+      case mat_state_type_variable: {
+          const float T_melt = get_T_melt(density, u, SESAME_eos->mat_id);
+          const float T = SESAME_temperature_from_internal_energy(density, u, SESAME_eos);
+
+        if (T > T_melt) {
+          return mat_phase_fluid;
+        } else {
+          return mat_phase_solid;
+        }
+      }
+
+      default:
+        return mat_phase_fluid;
+    }
+  #else
+    return mat_phase_fluid;
+  #endif /* MATERIAL_STRENGTH */
+  }
 
 #endif /* SWIFT_SESAME_EQUATION_OF_STATE_H */
