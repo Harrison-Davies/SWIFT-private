@@ -96,7 +96,8 @@ __attribute__((always_inline)) INLINE static void damage_shear_evolve(
   /* Calculate pressure and set invariant of total plastric strain. */
   const float pressure =
         gas_pressure_from_internal_energy(density, u, mat_id);
-  const float strain_invariant = p->strength_data.total_plastic_strain;
+  // const float strain_invariant = p->strength_data.total_plastic_strain;
+  const float strain_step = p->strength_data.plastic_strain_step;
 
   /* Method parameters. */
   const float brittle_to_ductile_pressure = material_brittle_to_ductile_pressure(mat_id);
@@ -130,14 +131,18 @@ __attribute__((always_inline)) INLINE static void damage_shear_evolve(
   }
 
   const float plastic_strain_at_failure = slope * pressure + intercept;
-  const float shear_damage_new = fminf(strain_invariant / plastic_strain_at_failure, 1.f);
+
+  const float delta_D = strain_step / plastic_strain_at_failure;  // Strain step should always be non-negative
+  // const float shear_damage_new = fminf(strain_invariant / plastic_strain_at_failure, 1.f);
 
   // ### Main questions here are:
   // ### 1) what the eqn is in the "else" above:
   // ### 2) Can damage decrease if e.g.  plastic_strain_at_failure increases but evolved plastic strain is const
 
   /* Prevent damage from decreasing. */
-  *shear_damage = fmaxf(shear_damage_new, shear_damage_prev);
+  // *shear_damage = fmaxf(shear_damage_new, shear_damage_prev);
+
+  *shear_damage = fminf(*shear_damage + delta_D, 1.f);
 }
 
 #endif /* SWIFT_DAMAGE_SHEAR_COLLINS04_H */

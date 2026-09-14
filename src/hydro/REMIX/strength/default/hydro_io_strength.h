@@ -67,10 +67,13 @@ INLINE static void hydro_write_particles_strength(const struct part* parts,
                                          struct io_props* list,
                                          int* num_fields) {
 #ifdef STRENGTH_DAMAGE
-   list[*num_fields] = io_make_output_field(
-       "Damage", FLOAT, 1, UNIT_CONV_NO_UNITS, 0.f, parts, strength_data.damage, "Damage of the particles");
+  list[*num_fields] = io_make_output_field(
+      "Damage", FLOAT, 1, UNIT_CONV_NO_UNITS, 0.f, parts, strength_data.damage, "Damage of the particles");
   
-  *num_fields += 1;  
+  list[*num_fields+1] = io_make_output_field(
+      "Yield Stress", FLOAT, 1, UNIT_CONV_PRESSURE, 0.f, parts, strength_data.yield_stress, "Yield stress of the particles");
+
+  *num_fields += 2;
 #endif
 }
 

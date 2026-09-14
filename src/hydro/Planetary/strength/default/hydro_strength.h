@@ -134,8 +134,8 @@ hydro_reset_acceleration_strength(struct part *restrict p) {
 __attribute__((always_inline)) INLINE static void
 hydro_end_force_strength(struct part *restrict p) {
 
- /* Update dS/dt for timestep. */
- stress_tensor_compute_dS_dt(p, p->strength_data.dv_force_loop);
+  /* Update dS/dt for timestep. */
+  stress_tensor_compute_dS_dt(p, p->strength_data.dv_force_loop);
 
   /* Get quantities needed for dD/dt calculation. */
   const int mat_id = p->mat_id;

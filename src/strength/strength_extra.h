@@ -41,6 +41,7 @@ __attribute__((always_inline)) INLINE static void strength_reset_predicted_value
 #ifdef STRENGTH_DAMAGE_SHEAR_COLLINS
   p->strength_data.strain_tensor = xp->strength_data.strain_tensor_full;
   p->strength_data.total_plastic_strain = xp->strength_data.total_plastic_strain_full;
+  p->strength_data.plastic_strain_step = xp->strength_data.plastic_strain_step_full;
 #endif /* STRENGTH_DAMAGE_SHEAR_COLLINS */
 }
 
@@ -93,8 +94,12 @@ __attribute__((always_inline)) INLINE static void strength_predict_extra_beginni
   delta_elastic_strain_tensor.xz = p->strength_data.strain_tensor.xz - strain_tensor_pre_yield.xz;
   delta_elastic_strain_tensor.yz = p->strength_data.strain_tensor.yz - strain_tensor_pre_yield.yz;
 
+  /* Save plastic strain step*/
+  p->strength_data.plastic_strain_step = sqrtf(strength_compute_sym_matrix_J_2(delta_elastic_strain_tensor));
+
   /* Add contribution to measure of total plastic strain. */
-  p->strength_data.total_plastic_strain += sqrtf(strength_compute_sym_matrix_J_2(delta_elastic_strain_tensor));
+  p->strength_data.total_plastic_strain += p->strength_data.plastic_strain_step;
+
 #endif /* STRENGTH_DAMAGE_SHEAR_COLLINS */
 }
 
@@ -142,17 +147,20 @@ __attribute__((always_inline)) INLINE static void strength_kick_extra_beginning(
   yield_apply_yield_stress_to_sym_matrix(
          &xp->strength_data.strain_tensor_full, xp->strength_data.deviatoric_stress_tensor_full, density, u, yield_stress);
 
- /* Calculate the change in elastic strain in the time-step. */
- struct sym_matrix delta_elastic_strain_tensor;
- delta_elastic_strain_tensor.xx = xp->strength_data.strain_tensor_full.xx - strain_tensor_pre_yield.xx;
- delta_elastic_strain_tensor.yy = xp->strength_data.strain_tensor_full.yy - strain_tensor_pre_yield.yy;
- delta_elastic_strain_tensor.zz = xp->strength_data.strain_tensor_full.zz - strain_tensor_pre_yield.zz;
- delta_elastic_strain_tensor.xy = xp->strength_data.strain_tensor_full.xy - strain_tensor_pre_yield.xy;
- delta_elastic_strain_tensor.xz = xp->strength_data.strain_tensor_full.xz - strain_tensor_pre_yield.xz;
- delta_elastic_strain_tensor.yz = xp->strength_data.strain_tensor_full.yz - strain_tensor_pre_yield.yz;
+  /* Calculate the change in elastic strain in the time-step. */
+  struct sym_matrix delta_elastic_strain_tensor;
+  delta_elastic_strain_tensor.xx = xp->strength_data.strain_tensor_full.xx - strain_tensor_pre_yield.xx;
+  delta_elastic_strain_tensor.yy = xp->strength_data.strain_tensor_full.yy - strain_tensor_pre_yield.yy;
+  delta_elastic_strain_tensor.zz = xp->strength_data.strain_tensor_full.zz - strain_tensor_pre_yield.zz;
+  delta_elastic_strain_tensor.xy = xp->strength_data.strain_tensor_full.xy - strain_tensor_pre_yield.xy;
+  delta_elastic_strain_tensor.xz = xp->strength_data.strain_tensor_full.xz - strain_tensor_pre_yield.xz;
+  delta_elastic_strain_tensor.yz = xp->strength_data.strain_tensor_full.yz - strain_tensor_pre_yield.yz;
 
- /* Add contribution to measure of total plastic strain. */
- xp->strength_data.total_plastic_strain_full += sqrtf(strength_compute_sym_matrix_J_2(delta_elastic_strain_tensor));
+  /* Save plastic strain step*/
+  xp->strength_data.plastic_strain_step_full = sqrtf(strength_compute_sym_matrix_J_2(delta_elastic_strain_tensor));
+
+  /* Add contribution to measure of total plastic strain. */
+  xp->strength_data.total_plastic_strain_full += xp->strength_data.plastic_strain_step_full;
 #endif /* STRENGTH_DAMAGE_SHEAR_COLLINS */
 }
 
@@ -175,6 +183,9 @@ __attribute__((always_inline)) INLINE static void strength_first_init_part_extra
 
   p->strength_data.total_plastic_strain = 0.f;
   xp->strength_data.total_plastic_strain_full = 0.f;
+
+  p->strength_data.plastic_strain_step = 0.f;
+  xp->strength_data.plastic_strain_step_full = 0.f;
 #endif /* STRENGTH_DAMAGE_SHEAR_COLLINS */
 }
 

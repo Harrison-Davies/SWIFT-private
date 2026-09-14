@@ -236,10 +236,15 @@ __attribute__((always_inline)) INLINE static void damage_compute_timescale(
     struct part *restrict p, const struct sym_matrix stress_tensor,
     const int mat_id, const float mass, const float density, const float u) {
 
+#ifdef STRENGTH_DAMAGE
+  /* Damage parameters set to values at drift time. */
+  const float damage = strength_get_damage(p);
+  float dDdt = 0.f;
+
 #ifdef STRENGTH_DAMAGE_TENSILE_BENZ_ASPHAUG
   /* Damage parameters set to values at drift time. */
   const float tensile_damage = damage_get_tensile_damage(p);
-  const float damage = strength_get_damage(p);
+  // const float damage = strength_get_damage(p);
 
   /* If full tensile damage or full damage, no accumulation. */
   if (tensile_damage == 1.f || damage == 1.f) {
@@ -266,14 +271,21 @@ __attribute__((always_inline)) INLINE static void damage_compute_timescale(
       return;
   }
 
-  /* Compute the limiting timescale for tensile damage accumulation. */
-  const float damage_scale = 1.f;
-  p->strength_data.damage_accumulation_timescale = damage_scale / tensile_cbrtD_dt;
+  const float cbrtD = cbrtf(tensile_damage);
+  const float tensile_dD_dt = 3.f * cbrtD * cbrtD * tensile_cbrtD_dt;  // Chain rule (cube root of dD/dt) not the same as Tom's implementation below
 
-#elif STRENGTH_DAMAGE_SHEAR_COLLINS
+  dDdt += tensile_dD_dt;
+
+  /* Compute the limiting timescale for tensile damage accumulation. */
+  // const float damage_scale = 1.f;
+  // p->strength_data.damage_accumulation_timescale = damage_scale / tensile_cbrtD_dt;
+
+#endif /* STRENGTH_DAMAGE_TENSILE_BENZ_ASPHAUG */
+
+#ifdef STRENGTH_DAMAGE_SHEAR_COLLINS
   /* Damage parameters set to values at drift time. */
   const float shear_damage = damage_get_shear_damage(p);
-  const float damage = strength_get_damage(p);
+  // const float damage = strength_get_damage(p);
   
 
   /* If full shear damage or full damage, no accumulation. */
@@ -290,11 +302,24 @@ __attribute__((always_inline)) INLINE static void damage_compute_timescale(
   const float plastic_strain_rate =
     sqrtf(strength_compute_sym_matrix_J_2(sym_strain_rate_tensor));
 
+  dDdt += plastic_strain_rate;
+
   /* Compute the limiting timescale for shear damage accumulation. */
-  const float damage_scale = 1.f;
-  p->strength_data.damage_accumulation_timescale = damage_scale / plastic_strain_rate;
+  // const float damage_scale = 1.f;
+  // p->strength_data.damage_accumulation_timescale = damage_scale / plastic_strain_rate;
 
 #endif /* STRENGTH_DAMAGE_SHEAR_COLLINS */
+
+  /* If zero damage accumulation. */
+  if (dDdt == 0.f) {
+      p->strength_data.damage_accumulation_timescale = FLT_MAX;
+      return;
+  }
+
+  const float damage_scale = 1.f;
+  p->strength_data.damage_accumulation_timescale = damage_scale / dDdt;
+
+#endif /* STRENGTH_DAMAGE */
 
   // ### If we also have a shear damage timescale, we would need to compute that and then take the minimum of the two timescales here.
   // ### That might be harder to do because of the way the delta damage is calculated directly rather than a time drivative

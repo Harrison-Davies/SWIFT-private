@@ -261,6 +261,9 @@ __attribute__((always_inline)) INLINE static void hydro_kick_strength_beginning(
   const float pressure = gas_pressure_from_internal_energy(density, u, mat_id);
   const float damage = strength_get_damage_full(xp);
   const float yield_stress = yield_compute_yield_stress(mat_id, phase, density, pressure, u, damage);
+
+  p->strength_data.yield_stress = yield_stress;
+
   const struct sym_matrix deviatoric_stress_tensor = xp->strength_data.deviatoric_stress_tensor_full;
 
   struct sym_matrix stress_tensor = {0};
@@ -309,6 +312,7 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part_strength
 
   strength_first_init_part_stress_tensor(p, xp);
   strength_first_init_part_damage(p, xp);
+  p->strength_data.yield_stress = 0.f;
 }
 
 #endif /* SWIFT_REMIX_STRENGTH_DEFAULT_H */

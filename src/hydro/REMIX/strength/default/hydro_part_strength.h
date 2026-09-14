@@ -62,6 +62,9 @@ struct strength_xpart_data {
 
   // Total plastic strain
   float total_plastic_strain_full;
+  
+  // Plastic strain step
+  float plastic_strain_step_full;
 #endif
 };
 
@@ -88,6 +91,9 @@ struct strength_part_data {
 
   // Gradient of velocity, calculated using linear-order reproducing kernel.
   float dv_force_loop[3][3];
+
+  // Yield strength at this particle state
+  float yield_stress;
 
 #ifdef STRENGTH_DAMAGE
   // Accumulated damage
@@ -118,6 +124,9 @@ struct strength_part_data {
 
   // Total plastic strain
   float total_plastic_strain;
+  
+  // Plastic strain step
+  float plastic_strain_step;
 #endif
 };
 
