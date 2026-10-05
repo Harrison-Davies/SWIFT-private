@@ -62,6 +62,29 @@ __attribute__((always_inline)) INLINE static float strength_compute_sym_matrix_J
 }
 
 /**
+ * @brief Adds the contribution of a neighbour to a particle's velocity gradient.
+ *
+ * Used in the force loop to build dv_force_loop, with dv[i][j] = dv_j/dx_i.
+ *
+ * @param dv The velocity gradient contribution to add to dv/dr.
+ * @param vi Velocity of the particle.
+ * @param vj Velocity of the neighbour.
+ * @param G Kernel gradient for the particle pair.
+ * @param volume_j Volume of the neighbour.
+ */
+__attribute__((always_inline)) INLINE static void
+strength_add_velocity_gradient_contribution(float dv[3][3], const float vi[3],
+                                    const float vj[3], const float G[3],
+                                    const float volume_j) {
+
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      dv[i][j] += (vj[j] - vi[j]) * G[i] * volume_j;
+    }
+  }
+}
+
+/**
  * @brief Computes the strain rate tensor.
  *
  * @param strain_rate_tensor The strain rate tensor to be computed.
@@ -85,8 +108,10 @@ strength_compute_strain_rate_tensor(float strain_rate_tensor[3][3], const float 
 /**
  * @brief Computes the rotation rate tensor.
  *
+ * The rotation rate tensor is R_ij = 0.5 * (dv_i/dx_j - dv_j/dx_i).
+ *
  * @param rotation_rate_tensor The rotation rate tensor to be computed.
- * @param dv The velocity gradient dv/dr.
+ * @param dv The velocity gradient dv/dr, with dv[i][j] = dv_j/dx_i
  */
 __attribute__((always_inline)) INLINE static void
 strength_compute_rotation_rate_tensor(float rotation_rate_tensor[3][3], const float dv[3][3]) {
@@ -106,9 +131,10 @@ strength_compute_rotation_rate_tensor(float rotation_rate_tensor[3][3], const fl
 /**
  * @brief Computes the rotation contribution for transforming a tensor into the co-rotating frame.
  *
- * This function calculates the term M*R - R*M, where R is the rotation rate tensor,
- * and M is the tensor being rotated. This term accounts for the apparent change
- * of the tensor due to rotation of the reference frame.
+ * This function calculates the term R*M - M*R, where R is the rotation rate tensor,
+ * R_ij = 0.5 * (dv_i/dx_j - dv_j/dx_i), and M is the tensor being rotated. This
+ * term accounts for the apparent change of the tensor due to rotation of the
+ * reference frame.
  *
  * Note: Papers often make errors in the signs in this equation. For the correct
  *       equation, see Dienes 1979 for a detailed derivation, which leads to
@@ -126,141 +152,11 @@ const float rotation_rate_tensor[3][3], const float M[3][3]) {
     for (int j = 0; j < 3; j++) {
       rotation_term[i][j] = 0.f;
       for (int k = 0; k < 3; k++) {
-        rotation_term[i][j] += M[i][k] * rotation_rate_tensor[k][j] -
-                               rotation_rate_tensor[i][k] * M[k][j];
+        rotation_term[i][j] += rotation_rate_tensor[i][k] * M[k][j] -
+                               M[i][k] * rotation_rate_tensor[k][j];
       }
     }
   }
 }
 
-/**
- * @brief Evolves a strain tensor over a time-step.
- *
- * This function updates the strain tensor according to the combined effects
- * of the strain rate and rotation contributions. After updating, the function
- * enforces symmetry of the strain tensor.
- *
- * @param strain_tensor The strain tensor to be evolved.
- * @param strain_rate_tensor The strain rate tensor.
- * @param rotation_term The rotation term.
- * @param dt The time-step over which to evolve the strain tensor.
- */
-__attribute__((always_inline)) INLINE static void strength_evolve_strain_tensor(float strain_tensor[3][3],
-const float strain_rate_tensor[3][3], const float rotation_term[3][3], const float dt) {
-
-  /* Evolve strain tensor. */
-  float evolved_strain_tensor[3][3];
-  memcpy(evolved_strain_tensor, strain_tensor, 3 * 3 * sizeof(float));
-  evolved_strain_tensor[0][0] += (strain_rate_tensor[0][0] + rotation_term[0][0]) * dt;
-  evolved_strain_tensor[0][1] += (strain_rate_tensor[0][1] + rotation_term[0][1]) * dt;
-  evolved_strain_tensor[0][2] += (strain_rate_tensor[0][2] + rotation_term[0][2]) * dt;
-  evolved_strain_tensor[1][0] += (strain_rate_tensor[1][0] + rotation_term[1][0]) * dt;
-  evolved_strain_tensor[1][1] += (strain_rate_tensor[1][1] + rotation_term[1][1]) * dt;
-  evolved_strain_tensor[1][2] += (strain_rate_tensor[1][2] + rotation_term[1][2]) * dt;
-  evolved_strain_tensor[2][0] += (strain_rate_tensor[2][0] + rotation_term[2][0]) * dt;
-  evolved_strain_tensor[2][1] += (strain_rate_tensor[2][1] + rotation_term[2][1]) * dt;
-  evolved_strain_tensor[2][2] += (strain_rate_tensor[2][2] + rotation_term[2][2]) * dt;
-
-  /* Enforce symmetry of strain tensor. */
-  strain_tensor[0][0] = evolved_strain_tensor[0][0];
-  strain_tensor[1][1] = evolved_strain_tensor[1][1];
-  strain_tensor[2][2] = evolved_strain_tensor[2][2];
-  strain_tensor[0][1] = 0.5f * (evolved_strain_tensor[0][1] + evolved_strain_tensor[1][0]);
-  strain_tensor[0][2] = 0.5f * (evolved_strain_tensor[0][2] + evolved_strain_tensor[2][0]);
-  strain_tensor[1][0] = 0.5f * (evolved_strain_tensor[1][0] + evolved_strain_tensor[0][1]);
-  strain_tensor[1][2] = 0.5f * (evolved_strain_tensor[1][2] + evolved_strain_tensor[2][1]);
-  strain_tensor[2][0] = 0.5f * (evolved_strain_tensor[2][0] + evolved_strain_tensor[0][2]);
-  strain_tensor[2][1] = 0.5f * (evolved_strain_tensor[2][1] + evolved_strain_tensor[1][2]);
-}
-
-
-/**
- * @brief Evolves a rotation tensor over a time-step.
- *
- * This function updates the rotation tensor according to
- *
- *     d(rotation_tensor)/dt = rotation_rate_tensor * rotation_tensor.
- *
- * For sufficiently small time steps, the rotation rate tensor is approximately
- * constant, allowing the solution to be expressed via
- *
- *     rotation_tensor(t + dt) = exp(rotation_rate_tensor * dt) * rotation_tensor(t).
- *
- * The matrix exponential can be expressed using Rodrigues' rotation formula:
- *
- *     exp(theta * N) = I + sin(theta) * N + (1 - cos(theta)) * N^2,
- *
- * where `theta` is the magnitude of the angular velocity vector derived from the
- * rotation_rate_tensor, and `N` is the corresponding unit skew-symmetric matrix.
- *
- * NOTE: The rotation tensor should remain approximately orthogonal, though
- * small numerical errors can accumulate over time, meaning the tensor could in
- * principle deviate from representing a strict rotation.
- *
- * @param rotation_tensor The rotation tensor to be evolved.
- * @param rotation_rate_tensor The rotation rate tensor.
- * @param dt The time-step over which to evolve the rotation tensor.
- */
-__attribute__((always_inline)) INLINE static void
-strength_evolve_rotation_tensor(float rotation_tensor[3][3], const float rotation_rate_tensor[3][3], const float dt) {
-
-  /* Angular velocity vector from rotation rate tensor. */
-  float omega[3];
-  omega[0] = 0.5f * (rotation_rate_tensor[2][1] - rotation_rate_tensor[1][2]);
-  omega[1] = 0.5f * (rotation_rate_tensor[0][2] - rotation_rate_tensor[2][0]);
-  omega[2] = 0.5f * (rotation_rate_tensor[1][0] - rotation_rate_tensor[0][1]);
-  const float omega_mag = sqrtf(omega[0]*omega[0] + omega[1]*omega[1] + omega[2]*omega[2]);
-
-  /* Rotation angle. */
-  const float theta = omega_mag * dt;
-
-  /* Return to avoid division by 0. */
-  if (theta <= 0.f) {
-    return;
-  }
-
-  /* Unit vector. */
-  const float n[3] = {omega[0]/omega_mag, omega[1]/omega_mag, omega[2]/omega_mag};
-
-  /* Build skew-symmetric matrix of n. */
-  float N[3][3] = {
-    {  0.f, -n[2],  n[1]},
-    { n[2],   0.f, -n[0]},
-    {-n[1],  n[0],   0.f}
-  };
-
-  /* Compute N^2. */
-  float N2[3][3];
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      N2[i][j] = 0.f;
-      for (int k = 0; k < 3; k++) {
-        N2[i][j] += N[i][k] * N[k][j];
-      }
-    }
-  }
-
-  /* Compute Rodrigues' rotation formula expression for exp(theta): I + sin(theta) N + (1 - cos(theta)) N^2. */
-  const float sin_theta = sinf(theta);
-  const float one_minus_cos_theta = 1.f - cosf(theta);
-  float matrix_exp_theta[3][3] = {{0.f}};
-  for (int i = 0; i < 3; i++) {
-    matrix_exp_theta[i][i] += 1.f;
-    for (int j = 0; j < 3; j++) {
-      matrix_exp_theta[i][j] += sin_theta * N[i][j] + one_minus_cos_theta * N2[i][j];
-    }
-  }
-
-  /* Update rotation_tensor. */
-  float prev_rotation_tensor[3][3];
-  memcpy(prev_rotation_tensor, rotation_tensor, 3 * 3 * sizeof(float));
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      rotation_tensor[i][j] = 0.f;
-      for (int k = 0; k < 3; k++) {
-        rotation_tensor[i][j] += matrix_exp_theta[i][k] * prev_rotation_tensor[k][j];
-      }
-    }
-  }
-}
 #endif /* SWIFT_STRENGTH_UTILITIES_H */

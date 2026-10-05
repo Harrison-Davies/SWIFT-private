@@ -1,6 +1,7 @@
 ###############################################################################
 # This file is part of SWIFT.
-# Copyright (c) 2016 Matthieu Schaller (matthieu.schaller@durham.ac.uk)
+# Copyright (c) 2025 Thomas Sandnes (thomas.d.sandnes@durham.ac.uk)
+#               2016 Matthieu Schaller (matthieu.schaller@durham.ac.uk)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -20,76 +21,70 @@
 import h5py
 import numpy as np
 
-# Generates a swift IC file for
+# Generates a swift IC file for the Solid--Solid interaction test in a periodic box
 
 # Parameters
-L = 200             # Number of particles on the side
-density = 1.0       # Gas central density
-c_s = 85200         # Sound speed
-vx = 0.059 * c_s
-vy = 0.0
-fileOutputName = "cylinders.hdf5"
-L_depth = 15
-boxsize = 20
+N_l = 128  # Particles along one edge in the low-density region
+N_depth = 18  # Particles in z direction in low-density region
+rho1 = 1  # Central region density
+rho2 = 1  # Outskirts density
+v1 = 1000  # Central region velocity
+v2 = 0  # Outskirts velocity
+boxsize_l = 1  # size of simulation box in x and y dimension
+boxsize_depth = boxsize_l * N_depth / N_l  # size of simulation box in z dimension
+fileOutputName = "solid_solid.hdf5"
 
-# Cylinder parameters
-outer_r = 4
-inner_r = 3
-initial_offset = 50 * boxsize / L 
 # ---------------------------------------------------
 
+num_part = N_l * N_l * N_depth
+
 # Set up grid of particles
-numPart_grid = L * L * L_depth
-i = np.arange(L)
-j = np.arange(L)
-k = np.arange(L_depth)
+i = np.arange(N_l)
+j = np.arange(N_l)
+k = np.arange(N_depth)
 ii, jj, kk = np.meshgrid(i, j, k, indexing="ij")
-
-pos_grid = np.empty((numPart_grid, 3), dtype=np.float64)
-pos_grid[:, 0] = ((ii.ravel() + 0.5) / L) * boxsize
-pos_grid[:, 1] = ((jj.ravel() + 0.5) / L) * boxsize
-pos_grid[:, 2] = ((kk.ravel() + 0.5) / L) * boxsize
-
-h_grid = np.full(numPart_grid, (boxsize / L) * 1.2348)
-m_grid = np.full(numPart_grid, density * (boxsize / L)**3)
-
-# Cylinder masks 
-select_cylinderA = np.logical_and(
-    (pos_grid[:, 0] - initial_offset - boxsize/2)**2 + (pos_grid[:, 1] - boxsize/2)**2 <= outer_r**2,
-    (pos_grid[:, 0] - initial_offset - boxsize/2)**2 + (pos_grid[:, 1] - boxsize/2)**2 >= inner_r**2,
-)
-select_cylinderB = np.logical_and(
-    (pos_grid[:, 0] + initial_offset - boxsize/2)**2 + (pos_grid[:, 1] - boxsize/2)**2 <= outer_r**2,
-    (pos_grid[:, 0] + initial_offset - boxsize/2)**2 + (pos_grid[:, 1] - boxsize/2)**2 >= inner_r**2,
-)
-
-# Set up velocities
-vel = np.zeros((numPart_grid, 3))
-vel[select_cylinderA, 0] = -vx
-vel[select_cylinderB, 0] = vx
-
-# Select particles in the cylinders
-select_both = np.logical_or(select_cylinderA, select_cylinderB)
-pos = pos_grid[select_both, :]
-h = h_grid[select_both]
-m = m_grid[select_both]
-vel = vel[select_both, :]
+coords = np.empty((num_part, 3))
+coords[:, 0] = (ii.ravel() / N_l + 1.0 / (2.0 * N_l)) * boxsize_l
+coords[:, 1] = (jj.ravel() / N_l + 1.0 / (2.0 * N_l)) * boxsize_l
+coords[:, 2] = (kk.ravel() / N_depth + 1.0 / (2.0 * N_depth)) * boxsize_depth
 
 # Set up other arrays
-numPart = np.size(h)
-ids = np.linspace(1, numPart, numPart)
-mat = 500 * np.ones(numPart)
-object_ids = np.where(select_cylinderA[select_both], 0, 1)
-rho = np.ones(numPart)
-u = np.zeros(numPart)
+vel = np.zeros((num_part, 3))
+rho = np.empty(num_part)
+m = np.empty(num_part)
+mat = np.empty(num_part)
+h = np.full(num_part, boxsize_l / N_l)
+ids = np.arange(1, num_part + 1)
+u = np.zeros(num_part)
 
-# File
+# region masks
+mask_out = (coords[:, 1] >= 0.25) & (coords[:, 1] <= 0.75)
+mask_in = ~mask_out
+
+# density and mass
+rho[mask_out] = rho1
+rho[mask_in] = rho2
+m = rho / (N_l ** 3)
+
+# shear velocity
+vel[mask_out, 0] = v1
+vel[mask_in, 0] = v2
+
+# material IDs
+mat[mask_out] = 500
+mat[mask_in] = 500
+
+# object IDs
+object_ids = np.zeros(num_part, dtype=np.int32)
+object_ids[mask_out] = 1
+
 with h5py.File(fileOutputName, "w") as f:
+
     hdr = f.create_group("/Header")
-    hdr.attrs["BoxSize"] = np.array([boxsize, boxsize, boxsize * L_depth / L])
-    hdr.attrs["NumPart_Total"] = np.array([numPart, 0, 0, 0, 0, 0])
+    hdr.attrs["BoxSize"] = np.array([boxsize_l, boxsize_l, boxsize_depth])
+    hdr.attrs["NumPart_Total"] = np.array([num_part, 0, 0, 0, 0, 0])
     hdr.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype=np.int32)
-    hdr.attrs["NumPart_ThisFile"] = np.array([numPart, 0, 0, 0, 0, 0])
+    hdr.attrs["NumPart_ThisFile"] = np.array([num_part, 0, 0, 0, 0, 0])
     hdr.attrs["Time"] = 0.0
     hdr.attrs["NumFilesPerSnapshot"] = 1
     hdr.attrs["MassTable"] = np.zeros(6)
@@ -105,7 +100,7 @@ with h5py.File(fileOutputName, "w") as f:
 
     part = f.create_group("/PartType0")
 
-    part.create_dataset("Coordinates", data=pos)
+    part.create_dataset("Coordinates", data=coords)
     part.create_dataset("Velocities", data=vel.astype(np.float32))
     part.create_dataset("Masses", data=m.reshape(-1, 1).astype(np.float32))
     part.create_dataset("Density", data=rho.reshape(-1, 1).astype(np.float32))
@@ -113,4 +108,4 @@ with h5py.File(fileOutputName, "w") as f:
     part.create_dataset("InternalEnergy", data=u.reshape(-1, 1).astype(np.float32))
     part.create_dataset("ParticleIDs", data=ids.reshape(-1, 1))
     part.create_dataset("MaterialIDs", data=mat.reshape(-1, 1))
-    part.create_dataset("ObjectIDs", data=object_ids.reshape(-1, 1).astype(np.int32))
+    part.create_dataset("ObjectIDs", data=object_ids.reshape(-1, 1))

@@ -31,9 +31,9 @@
 /**
  * @brief Computes the stress tensor time-step of a given particle.
  *
- * Calculates a time-step based on the particle's rate of elastic stress
- * accumulation. If this time-step is smaller than dt_cfl, dt_cfl gets
- * overwritten to this damage time-step.
+ * Limits the time-step based on an invariant measure of the strain rate tensor.
+ * Stress accumulates based on the strain rate tensor, so this limits how much
+ * the stress can change in one time-step.
  *
  * @param dt_cfl The hydro (+ strength) time-step.
  * @param p The particle of interest.
@@ -41,31 +41,19 @@
 __attribute__((always_inline)) INLINE static void strength_compute_timestep_stress_tensor(
     float *dt_cfl, const struct part *restrict p, const struct hydro_props *restrict hydro_properties) {
 
-  const float shear_mod = material_shear_mod(p->mat_id);
-  const float elastic_timestep_factor = hydro_properties->CFL_condition; // ### Set as same as CFL factor for now. Treat this similarly to CFL
-  const float floor_factor = 1e-2f; // Arbitrary factor to set the floor for S relative to mu.
-
-  /* Find element with max |S| / |dS/dt| */
-  float ratio_max = 0.f;
-  for (int i = 0; i < 6; i++) {
-    const float S  = fabsf(p->strength_data.deviatoric_stress_tensor.elements[i]);
-    const float dS_dt = fabsf(p->strength_data.dS_dt.elements[i]);
-
-    /*Apply floor to S to avoid zero timesteps when S is small */
-    const float S_floored = fmaxf(S, floor_factor * shear_mod);
-
-    if (dS_dt > 0.f) {
-      const float ratio = S_floored / dS_dt;
-      if (ratio > ratio_max) {
-        ratio_max = ratio;
-      }
-    }
+  /* Only solid particles accumulate deviatoric stress. */
+  if (p->phase != mat_phase_solid) {
+    return;
   }
 
-  if (ratio_max > 0.f) {
-    const float dt_elastic = elastic_timestep_factor * ratio_max;
-    if (dt_elastic < *dt_cfl) {
-      *dt_cfl = dt_elastic;
+  /* Measure of strain rate. */
+  const float strain_rate_invariant =
+      sqrtf(strength_compute_sym_matrix_J_2(p->strength_data.strain_rate_tensor));
+
+  if (strain_rate_invariant > 0.f) {
+    const float dt_strain = hydro_properties->CFL_condition / strain_rate_invariant;
+    if (dt_strain < *dt_cfl) {
+      *dt_cfl = dt_strain;
     }
   }
 }
@@ -117,7 +105,7 @@ __attribute__((always_inline)) INLINE static void strength_compute_stress_tensor
  *
  * The stress tensors used for the force interaction between a specific pair of
  * particles. These differ from the particle's own stress tensor, since they
- * factor in the phases of the two particles as well as the contribution of
+ * factor in e.g. the phases of the two particles as well as the contribution of
  * artificial stress for the pairwise interaction.
  *
  * @param pairwise_stress_tensor_i Stress tensor of particle i for its interaction with j.
@@ -133,9 +121,8 @@ strength_set_pairwise_stress_tensors(float pairwise_stress_tensor_i[3][3],
                                      const struct part *restrict pj,
                                      const float r) {
 
-  /* Only overwrite the fluid pairwise stress tensors if both particles are solid. */
-  if ((pi->phase == mat_phase_solid) &&
-      (pj->phase == mat_phase_solid)) {
+  /* Only overwrite the fluid pairwise stress tensors for interactions with strength. */
+  if (!strength_is_strengthless_interaction(pi, pj)) {
 
     /* Get stress tensors. */
     get_matrix_from_sym_matrix(pairwise_stress_tensor_i, &pi->strength_data.stress_tensor);
@@ -166,16 +153,14 @@ strength_set_pairwise_stress_tensors(float pairwise_stress_tensor_i[3][3],
  * ### Description of how this ties in with Hooke's law
  *
  * @param p The particle of interest.
- * @param dv The velocity gradient dv/dr.
+ * @param strain_rate_tensor The strain rate tensor.
+ * @param rotation_rate_tensor The rotation rate tensor.
  */
-__attribute__((always_inline)) INLINE static void stress_tensor_compute_dS_dt(struct part *restrict p, const float dv[3][3]) {
+__attribute__((always_inline)) INLINE static void stress_tensor_compute_dS_dt(
+    struct part *restrict p, const float strain_rate_tensor[3][3],
+    const float rotation_rate_tensor[3][3]) {
 
   const float shear_mod = material_shear_mod(p->mat_id);
-  float strain_rate_tensor[3][3], rotation_rate_tensor[3][3], rotation_term[3][3];
-
-  /* Compute strain rate and rotation rate. */
-  strength_compute_strain_rate_tensor(strain_rate_tensor, dv);
-  strength_compute_rotation_rate_tensor(rotation_rate_tensor, dv);
 
   /* Convert deviatoric stress to 3x3 float to compute the rotation term . */
   float deviatoric_stress_tensor[3][3];
@@ -183,6 +168,7 @@ __attribute__((always_inline)) INLINE static void stress_tensor_compute_dS_dt(st
                              &p->strength_data.deviatoric_stress_tensor);
 
   /* Compute rotation term. */
+  float rotation_term[3][3];
   strength_compute_rotation_term(rotation_term, rotation_rate_tensor,
                                  deviatoric_stress_tensor);
 

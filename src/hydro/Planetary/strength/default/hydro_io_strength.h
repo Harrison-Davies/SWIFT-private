@@ -51,11 +51,17 @@ INLINE static void hydro_read_particles_strength(struct part* parts,
   list[*num_fields] = io_make_input_field("NumFlaws", INT, 1, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, strength_data.number_of_flaws);
   // ### Set length of these arrays in a better way here and in hydro_part.h
-  list[*num_fields+1] = io_make_input_field("ActivationThresholds", FLOAT, 40, COMPULSORY,
+  list[*num_fields+1] = io_make_input_field("ActivationThresholds", FLOAT, 64, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, strength_data.activation_thresholds);
   
   *num_fields += 2;  
-#endif    
+#endif
+#ifdef STRENGTH_OBJECT_IDS
+  list[*num_fields] = io_make_input_field("ObjectIDs", INT, 1, COMPULSORY,
+                                          UNIT_CONV_NO_UNITS, parts,
+                                          strength_data.object_id);
+  *num_fields += 1;
+#endif
 }
 
 /**
@@ -78,6 +84,12 @@ INLINE static void hydro_write_particles_strength(const struct part* parts,
        "Yield Stress", FLOAT, 1, UNIT_CONV_PRESSURE, 0.f, parts, strength_data.yield_stress, "Yield stress of the particles");
 
   *num_fields += 2;  
+#endif
+#ifdef STRENGTH_OBJECT_IDS
+  list[*num_fields] = io_make_output_field(
+      "ObjectIDs", INT, 1, UNIT_CONV_NO_UNITS, 0.f, parts,
+      strength_data.object_id, "IDs of the objects that the particles belong to");
+  *num_fields += 1;
 #endif
 }
 
