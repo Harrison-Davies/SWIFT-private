@@ -56,12 +56,6 @@ struct strength_xpart_data {
 #ifdef STRENGTH_DAMAGE_SHEAR_COLLINS
   // Damage accumulated due to shear at the last full step
   float shear_damage_full;
-
-  // Strain tensor
-  struct sym_matrix strain_tensor_full;
-
-  // Total plastic strain
-  float total_plastic_strain_full;
 #endif
 };
 
@@ -86,6 +80,9 @@ struct strength_part_data {
   // Time derivative of deviatoric stress tensor
   struct sym_matrix dS_dt;
 
+  // Strain rate tensor
+  struct sym_matrix strain_rate_tensor;
+
   // Gradient of velocity, calculated using linear-order reproducing kernel.
   float dv_force_loop[3][3];
 
@@ -93,8 +90,8 @@ struct strength_part_data {
   // Accumulated damage
   float damage;
 
-  // Need to store this as a particle parameter for timestep
-  float damage_accumulation_timescale;
+  // Damage accumulation timescale
+  float dt_damage;
 #endif
 
 #ifdef STRENGTH_DAMAGE_TENSILE_BENZ_ASPHAUG
@@ -106,18 +103,17 @@ struct strength_part_data {
 
   // Activation thresholds of flaws for tensile damage accumulation
   // ### Work out how to set the length of this
-  float activation_thresholds[40];
+  float activation_thresholds[64];
 #endif
 
 #ifdef STRENGTH_DAMAGE_SHEAR_COLLINS
   // Damage accumulated due to shear
   float shear_damage;
+#endif
 
-  // Strain tensor
-  struct sym_matrix strain_tensor;
-
-  // Total plastic strain
-  float total_plastic_strain;
+#ifdef STRENGTH_OBJECT_IDS
+  // ID of the object that the particle belongs to
+  int object_id;
 #endif
 };
 

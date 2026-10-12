@@ -307,8 +307,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   kernel_deval(xj, &wj, &wj_dx);
 
   /* Linear-order reproducing kernel gradient term (Sandnes+2025 Eqn. 28) */
-  float Gj[3], Gi[3], G_mean[3];
-  hydro_set_Gi_Gj_forceloop(Gi, Gj, pi, pj, dx, wi, wj, wi_dx, wj_dx);
+  float Gj[3], Gi[3], G_mean[3], Gi_linear[3], Gj_linear[3];
+  hydro_set_Gi_Gj_forceloop(Gi, Gj, Gi_linear, Gj_linear, pi, pj, dx, wi, wj,
+                            wi_dx, wj_dx);
 
   /* Antisymmetric kernel grad term for conservation of momentum and energy */
   G_mean[0] = 0.5f * (Gi[0] - Gj[0]);
@@ -415,6 +416,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   pi->force.v_sig = max(pi->force.v_sig, v_sig);
   pj->force.v_sig = max(pj->force.v_sig, v_sig);
 
+  /* Strength. */
+  hydro_runner_iact_force_strength(pi, pj, dx, Gi_linear, Gj_linear);
+  
   if ((pi->is_h_max) || (pj->is_h_max)) {
     /* Do not add diffusion or normalising terms if either particle has h=h_max
      */
@@ -448,7 +452,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   }
 
   /* Only include diffusion for same-material particle pair */
-  if (pi->mat_id == pj->mat_id) {
+  if (hydro_difn_include_pair(pi, pj)) {
     /* Diffusion parameters */
     const float a_difn_rho = const_remix_difn_a_rho;
     const float b_difn_rho = const_remix_difn_b_rho;
@@ -485,8 +489,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   /* Add normalising term and artificial diffusion to evolution of density */
   pi->drho_dt += drho_dt_norm_and_difn_i;
   pj->drho_dt += drho_dt_norm_and_difn_j;
-
-  hydro_runner_iact_force_strength(pi, pj, dx, Gi, Gj);
 }
 
 /**
@@ -545,8 +547,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   kernel_deval(xj, &wj, &wj_dx);
 
   /* Linear-order reproducing kernel gradient term (Sandnes+2025 Eqn. 28) */
-  float Gj[3], Gi[3], G_mean[3];
-  hydro_set_Gi_Gj_forceloop(Gi, Gj, pi, pj, dx, wi, wj, wi_dx, wj_dx);
+  float Gj[3], Gi[3], G_mean[3], Gi_linear[3], Gj_linear[3];
+  hydro_set_Gi_Gj_forceloop(Gi, Gj, Gi_linear, Gj_linear, pi, pj, dx, wi, wj,
+                            wi_dx, wj_dx);
 
   /* Antisymmetric kernel grad term for conservation of momentum and energy */
   G_mean[0] = 0.5f * (Gi[0] - Gj[0]);
@@ -636,6 +639,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   /* Update the signal velocity. */
   pi->force.v_sig = max(pi->force.v_sig, v_sig);
 
+  /* Strength. */
+  hydro_runner_iact_nonsym_force_strength(pi, pj, dx, Gi_linear);
+
   if ((pi->is_h_max) || (pj->is_h_max)) {
     /* Do not add diffusion or normalising terms if either particle has h=h_max
      */
@@ -664,7 +670,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   }
 
   /* Only include diffusion for same-material particle pair */
-  if (pi->mat_id == pj->mat_id) {
+  if (hydro_difn_include_pair(pi, pj)) {
     /* Diffusion parameters */
     const float a_difn_rho = const_remix_difn_a_rho;
     const float b_difn_rho = const_remix_difn_b_rho;
@@ -693,8 +699,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   /* Add normalising term and artificial diffusion to evolution of density */
   pi->drho_dt += drho_dt_norm_and_difn_i;
-
-  hydro_runner_iact_nonsym_force_strength(pi, pj, dx, Gi);
 }
 
 #endif /* SWIFT_REMIX_HYDRO_IACT_H */

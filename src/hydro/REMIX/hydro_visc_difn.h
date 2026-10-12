@@ -29,6 +29,37 @@
 #include "const.h"
 #include "hydro_parameters.h"
 #include "math.h"
+#include "strength.h"
+
+/**
+ * @brief Whether velocities are not reconstructed between a pair of particles
+ *
+ * @param pi First particle.
+ * @param pj Second particle.
+ */
+__attribute__((always_inline)) INLINE static int hydro_visc_no_reconstruction(
+    const struct part *restrict pi, const struct part *restrict pj) {
+
+  /* Conditions from material strength, e.g. solid--fluid interactions */
+  if (hydro_visc_no_reconstruction_strength(pi, pj)) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
+ * @brief Whether a pair of particles contributes to the artificial diffusion
+ * of internal energy and density, and to the gradients used for it.
+ *
+ * @param pi First particle.
+ * @param pj Second particle.
+ */
+__attribute__((always_inline)) INLINE static int hydro_difn_include_pair(
+    const struct part *restrict pi, const struct part *restrict pj) {
+
+  return (pi->mat_id == pj->mat_id) && !hydro_difn_exclude_pair_strength(pi, pj);
+}
 
 /**
  * @brief Prepares extra artificial viscosity and artificial diffusion
@@ -103,7 +134,7 @@ hydro_runner_iact_gradient_extra_visc_difn(struct part *restrict pi,
 
     /* Contributions only from same-material particles for u and rho diffusion
      */
-    if (pi->mat_id == pj->mat_id) {
+    if (hydro_difn_include_pair(pi, pj)) {
       pi->du_norm_kernel[i] += (pj->u - pi->u) * wi_dx_term[i] * volume_j;
       pj->du_norm_kernel[i] += (pi->u - pj->u) * wj_dx_term[i] * volume_i;
 
@@ -120,8 +151,8 @@ hydro_runner_iact_gradient_extra_visc_difn(struct part *restrict pi,
           (pi->v[j] - pj->v[j]) * wj_dx_term[i] * volume_i;
     }
 
-    // Don't reconstruct quantities for visc at phase interfaces
-    if (pi->phase == pj->phase) {
+    // Don't reconstruct quantities for visc across e.g. phase interfaces
+    if (!hydro_visc_no_reconstruction(pi, pj)) {
       for (int j = 0; j < 3; j++) {
         pi->dv_norm_kernel_same_phase[i][j] +=
             (pj->v[j] - pi->v[j]) * wi_dx_term[i] * volume_j;
@@ -173,7 +204,7 @@ hydro_runner_iact_nonsym_gradient_extra_visc_difn(
 
     /* Contributions only from same-material particles for u and rho diffusion
      */
-    if (pi->mat_id == pj->mat_id) {
+    if (hydro_difn_include_pair(pi, pj)) {
       pi->du_norm_kernel[i] += (pj->u - pi->u) * wi_dx_term[i] * volume_j;
       pi->drho_norm_kernel[i] +=
           (pj->rho_evol - pi->rho_evol) * wi_dx_term[i] * volume_j;
@@ -184,8 +215,8 @@ hydro_runner_iact_nonsym_gradient_extra_visc_difn(
           (pj->v[j] - pi->v[j]) * wi_dx_term[i] * volume_j;
     }
 
-    // Don't reconstruct quantities for visc at phase interfaces
-    if (pi->phase == pj->phase) {
+    // Don't reconstruct quantities for visc across e.g. phase interfaces
+    if (!hydro_visc_no_reconstruction(pi, pj)) {
       for (int j = 0; j < 3; j++) {
         pi->dv_norm_kernel_same_phase[i][j] +=
             (pj->v[j] - pi->v[j]) * wi_dx_term[i] * volume_j;
@@ -235,9 +266,11 @@ __attribute__((always_inline)) INLINE static void hydro_set_Qi_Qj(
   const float epsilon = const_remix_visc_epsilon;
   const float eta_crit = 0.5f * (pi->force.eta_crit + pj->force.eta_crit);
   const float slope_limiter_exp_denom = const_remix_slope_limiter_exp_denom;
-  /* Slip condition between solid and inviscid fluid */
-  const float a_visc = (pi->phase != pj->phase) ? 0.f : const_remix_visc_a;
-  const float b_visc = (pi->phase != pj->phase) ? 1.f : const_remix_visc_b;
+  /* Slip condition where velocities are not reconstructed, e.g. between solid
+   * and inviscid fluid */
+  const int no_reconstruction = hydro_visc_no_reconstruction(pi, pj);
+  const float a_visc = no_reconstruction ? 0.f : const_remix_visc_a;
+  const float b_visc = no_reconstruction ? 1.f : const_remix_visc_b;
 
   if ((pi->is_h_max) || (pj->is_h_max)) {
     /* Don't reconstruct velocity if either particle has h=h_max */
