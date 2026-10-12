@@ -612,6 +612,10 @@ if test "$with_damage" != "none"; then
       shear-collins)
          AC_DEFINE([STRENGTH_DAMAGE_SHEAR_COLLINS], [1], [Collins shear damage])
       ;;
+      both)
+         AC_DEFINE([STRENGTH_DAMAGE_TENSILE_BENZ_ASPHAUG], [1], [Benz and Asphaug tensile damage])
+         AC_DEFINE([STRENGTH_DAMAGE_SHEAR_COLLINS], [1], [Collins shear damage])
+      ;;
       *)
          AC_MSG_ERROR([Unknown damage scheme: $with_damage])
       ;;

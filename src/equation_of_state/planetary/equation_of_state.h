@@ -1107,6 +1107,10 @@ __attribute__((always_inline)) INLINE static void eos_init(
 
     sprintf(param_name, "EoS:ANEOS_forsterite_mat_params_file");
     parser_get_opt_param_string(params, param_name, mat_params_file, "NoFile");
+
+    printf("Using ANEOS_forsterite");
+    printf("%s\n", mat_params_file);
+
     set_material_params(e->all_mat_params, eos_mat_id_ANEOS_forsterite, mat_params_file, us);
   }
   if (parser_get_opt_param_int(params, "EoS:planetary_use_ANEOS_iron", 0)) {
@@ -1130,6 +1134,9 @@ __attribute__((always_inline)) INLINE static void eos_init(
     load_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15], eos_file);
     prepare_table_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15]);
     convert_units_SESAME(&e->all_ANEOS[eos_unit_id_ANEOS_Fe85Si15], us);
+
+    printf("Using ANEOS_Fe85Si15");
+    printf("%s\n", mat_params_file);
 
     sprintf(param_name, "EoS:ANEOS_Fe85Si15_mat_params_file");
     parser_get_opt_param_string(params, param_name, mat_params_file, "NoFile");

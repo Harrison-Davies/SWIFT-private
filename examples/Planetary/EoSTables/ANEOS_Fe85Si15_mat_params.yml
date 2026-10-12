@@ -7,7 +7,7 @@ Material:
 # General material strength parameters
 Strength:
     shear_mod:      81.44e9    # Shear modulus (Pa)
-    bulk_mod:       151e9      # Bulk modulus (Pa)
+    bulk_mod:       141e9      # Bulk modulus (Pa)
     T_melt:         5032.7     # Melting temperature (K)
     rho_0:          7510       # (kg m^-3)
     T_m0:           1600.0     # K    
@@ -21,8 +21,8 @@ ArtificialStress:
     epsilon:       0.2
 
 YieldStress:
-    Y_0:            3.5e9
-    Y_M:            3.5e9
+    Y_0:            1e8
+    Y_M:            2.5e9
     mu_i:           2.0
     mu_d:           0.8
     yield_weakening_thermal_xi:          1.2
@@ -30,5 +30,6 @@ YieldStress:
     yield_weakening_density_pow_param:   4
 
 DamageShearCollins:
-    brittle_to_ductile_pressure:    0
-    brittle_to_plastic_pressure:    0
+    brittle_to_ductile_pressure:    1.23e9  # TEMPORARY
+    brittle_to_plastic_pressure:    2.35e9  # TEMPORARY
+

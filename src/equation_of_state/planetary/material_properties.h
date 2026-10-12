@@ -22,6 +22,16 @@
 #define SWIFT_PLANETARY_MATERIAL_PROPS_H
 
 /**
+ * Forward declarations. I'm not sure if there is a better way to do this <harrison>
+ * (eos_sesame.h calls get_T_melt before it is declared, get_T_melt calls the others)
+ */
+static INLINE float get_T_melt(const float density, const float u,
+                                const enum eos_planetary_material_id mat_id);
+static INLINE float gas_pressure_from_internal_energy(
+    const float density, const float u,
+    const enum eos_planetary_material_id mat_id);
+
+/**
  * @file equation_of_state/planetary/material_properties.h
  *
  * Material properties beyond the base EoS.
@@ -339,8 +349,17 @@ INLINE static void set_material_params_from_file(struct mat_params *mat_params,
       file_params, "Strength:shear_mod", mat_params->shear_mod);
   mat_params->bulk_mod = parser_get_opt_param_float(
       file_params, "Strength:bulk_mod", mat_params->bulk_mod);
-  mat_params->T_melt = parser_get_opt_param_float(
-      file_params, "Strength:T_melt", mat_params->T_melt);
+  #if defined(SIMON_APPROXIMATION_MELT)
+    mat_params->T_m0 =
+        parser_get_opt_param_float(file_params, "Strength:T_m0", 0.f);
+    mat_params->a =
+        parser_get_opt_param_float(file_params, "Strength:a", 0.f);
+    mat_params->c =
+        parser_get_opt_param_float(file_params, "Strength:c", 0.f);
+  #else
+    mat_params->T_melt =
+        parser_get_opt_param_float(file_params, "Strength:T_melt", 0.f);
+  #endif /* SIMON_APPROXIMATION_MELT */
   mat_params->rho_0 = parser_get_opt_param_float(
       file_params, "Strength:rho_0", mat_params->rho_0);
 
@@ -470,17 +489,18 @@ INLINE static void check_material_params(const struct mat_params *mat_params,
     error("Material %d: a solid or variable state_type needs "
           "Strength:shear_mod > 0", mat_id);
 
-  if ((mat_params->state_type == mat_state_type_variable) &&
-      (mat_params->T_melt <= 0.f))
-    error("Material %d: a variable state_type needs Strength:T_melt > 0",
-          mat_id);
+  // I'm not using this T_melt <harrison>
+  // if ((mat_params->state_type == mat_state_type_variable) &&
+  //     (mat_params->T_melt <= 0.f))
+  //   error("Material %d: a variable state_type needs Strength:T_melt > 0",
+  //         mat_id);
 
-  #if defined(STRENGTH_YIELD_STRESS_WEAKENING_THERMAL)
-    if ((mat_params->T_melt <= 0.f) ||
-        (mat_params->yield_weakening_thermal_xi <= 0.f))
-      error("Material %d: thermal yield weakening needs Strength:T_melt > 0 "
-            "and YieldStress:yield_weakening_thermal_xi > 0", mat_id);
-  #endif
+  // #if defined(STRENGTH_YIELD_STRESS_WEAKENING_THERMAL)
+  //   if ((mat_params->T_melt <= 0.f) ||
+  //       (mat_params->yield_weakening_thermal_xi <= 0.f))
+  //     error("Material %d: thermal yield weakening needs Strength:T_melt > 0 "
+  //           "and YieldStress:yield_weakening_thermal_xi > 0", mat_id);
+  // #endif
 
   #if defined(STRENGTH_YIELD_STRESS_WEAKENING_DENSITY)
     if (mat_params->rho_0 <= 0.f)
@@ -496,10 +516,14 @@ INLINE static void check_material_params(const struct mat_params *mat_params,
   #if defined(STRENGTH_DAMAGE_SHEAR_COLLINS)
     if ((mat_params->brittle_to_ductile_pressure <= 0.f) ||
         (mat_params->brittle_to_plastic_pressure <=
-         mat_params->brittle_to_ductile_pressure))
+         mat_params->brittle_to_ductile_pressure)) {
+      printf("%f %f\n",
+        mat_params->brittle_to_plastic_pressure,
+        mat_params->brittle_to_ductile_pressure);
       error("Material %d: shear damage needs 0 < "
             "DamageShearCollins:brittle_to_ductile_pressure < "
             "DamageShearCollins:brittle_to_plastic_pressure", mat_id);
+      }
   #endif
 
   #if defined(STRENGTH_ARTIFICIAL_STRESS_MON2000)
@@ -542,6 +566,29 @@ INLINE static void set_material_params(struct mat_params *all_mat_params,
 
   // Check parameters
   check_material_params(mat_params, mat_id);
+}
+
+/**
+ * @brief Get the melt temperature.
+ * 
+ * Either fetch the fixed melt temperature or calculate the melt temperature 
+ * by the Simon approximation (following Collins2016 / iSALE manual).
+ */
+__attribute__((always_inline)) INLINE static float
+get_T_melt(const float density, const float u,
+           const enum eos_planetary_material_id mat_id) {
+#ifdef MATERIAL_STRENGTH
+  #ifdef SIMON_APPROXIMATION_MELT
+    const float pressure = gas_pressure_from_internal_energy(density, u, mat_id);
+    const float T_m0 = material_simon_T_m0(mat_id);
+    const float a = material_simon_a(mat_id);
+    const float c = material_simon_c(mat_id);
+
+    return T_m0 * powf(pressure / a + 1.f, 1.f / c);
+  #else
+    return material_T_melt(mat_id);
+  #endif /* SIMON_APPROXIMATION_MELT */
+#endif /* MATERIAL_STRENGTH */
 }
 
 #endif /* SWIFT_PLANETARY_MATERIAL_PROPS_H */

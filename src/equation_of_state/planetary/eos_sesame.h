@@ -21,6 +21,16 @@
 #define SWIFT_SESAME_EQUATION_OF_STATE_H
 
 /**
+ * Forward declarations. I'm not sure if there is a better way to do this <harrison>
+ * (eos_sesame.h calls get_T_melt before it is declared, get_T_melt calls the others)
+ */
+static INLINE float get_T_melt(const float density, const float u,
+                                const enum eos_planetary_material_id mat_id);
+static INLINE float gas_pressure_from_internal_energy(
+    const float density, const float u,
+    const enum eos_planetary_material_id mat_id);
+
+/**
  * @file equation_of_state/planetary/sesame.h
  *
  * Contains the SESAME and ANEOS-in-SESAME-style EOS functions for
