@@ -30,6 +30,6 @@ YieldStress:
     yield_weakening_density_pow_param:   4
 
 DamageShearCollins:
-    brittle_to_ductile_pressure:    1.23e9  # TEMPORARY
-    brittle_to_plastic_pressure:    2.35e9  # TEMPORARY
+    brittle_to_ductile_pressure:    2.00e9  # (Pa) calculated from above
+    brittle_to_plastic_pressure:    3.86e9  # (Pa) calculated from above
 

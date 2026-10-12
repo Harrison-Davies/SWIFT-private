@@ -588,6 +588,8 @@ get_T_melt(const float density, const float u,
   #else
     return material_T_melt(mat_id);
   #endif /* SIMON_APPROXIMATION_MELT */
+#else
+  return 0.f;
 #endif /* MATERIAL_STRENGTH */
 }
 
