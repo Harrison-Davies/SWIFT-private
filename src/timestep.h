@@ -204,9 +204,40 @@ __attribute__((always_inline)) INLINE static integertime_t get_part_timestep(
   /* Limit timestep within the allowed range */
   new_dt = min(new_dt, e->dt_max);
 
-  if (new_dt < e->dt_min)
+  if (new_dt < e->dt_min) {
+    #ifdef MATERIAL_STRENGTH
+    float dt_stress = FLT_MAX;
+    strength_compute_timestep_stress_tensor(&dt_stress, p, e->hydro_properties);
+
+    float dt_damage = FLT_MAX;
+    strength_compute_timestep_damage(&dt_damage, p);
+
+    const char *names[] = {"hydro",        "strength stress tensor",
+                           "strength damage", "mhd",
+                           "cooling",      "self gravity",
+                           "external gravity", "forcing",
+                           "chemistry",    "h change",
+                           "RMS displacement"};
+    const float dts[] = {new_dt_hydro,     dt_stress,
+                         dt_damage,        new_dt_mhd,
+                         new_dt_cooling,   new_dt_self_grav,
+                         new_dt_ext_grav,  new_dt_forcing,
+                         new_dt_chemistry, dt_h_change,
+                         e->dt_max_RMS_displacement};
+    const int n = sizeof(dts) / sizeof(dts[0]);
+
+    int i_min = 0;
+    for (int i = 0; i < n; i++) {
+      message("part (id=%lld): %-24s dt = %e", p->id, names[i], dts[i]);
+      if (dts[i] < dts[i_min]) i_min = i;
+    }
+
+    message("part (id=%lld): limiting timestep is '%s' (dt = %e)", p->id,
+            names[i_min], dts[i_min]);
+    #endif /* MATERIAL_STRENGTH */
     error("part (id=%lld) wants a time-step (%e) below dt_min (%e)", p->id,
           new_dt, e->dt_min);
+  }
 
   /* Convert to integer time */
   integertime_t new_dti = make_integer_timestep(

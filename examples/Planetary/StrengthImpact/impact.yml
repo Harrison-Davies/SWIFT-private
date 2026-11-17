@@ -32,7 +32,15 @@ Statistics:
 
 # Parameters controlling restarts
 Restarts:
-    enable: 0                           # Whether to enable dumping restarts at fixed intervals.
+    enable:         1                   # Whether to enable dumping restarts at fixed intervals.
+    save:           0                   # Whether to save copies of the previous set of restart files (named .prev)
+    onexit:         1                   # Whether to dump restarts on exit (*needs enable*)
+    subdir:         ./RESTART           # Name of subdirectory for restart files.
+    basename:       Rfile               # Prefix used in naming restart files.
+    delta_hours:    12                  # Decimal hours between dumps of restart files.
+    max_run_time:   0.05              # Maximum runtime in hours
+    # resubmit_on_exit: 1
+    # resubmit_command: ./remix_500_0.1_0.01_1.5v_esc_45_0.3_resubmit.sh
 
 # Parameters for the hydrodynamics scheme
 SPH:

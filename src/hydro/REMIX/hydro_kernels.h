@@ -440,7 +440,28 @@ hydro_prepare_force_extra_kernel(struct part *restrict p) {
   for (int i = 0; i < 6; i++) {
     m2_bar_over_h2.elements[i] = p->gradient.m2_bar.elements[i] / (p->h * p->h);
   }
-  sym_matrix_invert(&m2_bar_inv, &m2_bar_over_h2);
+  // <harrison> replace the call so we can fallback to the standard kernel
+  // sym_matrix_invert(&m2_bar_inv, &m2_bar_over_h2);
+  float M[3][3];
+  get_matrix_from_sym_matrix(M, &m2_bar_over_h2);
+  if (invert_dimension_by_dimension_matrix(M)) {  // Fails if the neighbours span fewer than 3 dimensions (e.g. in are on a line)
+    // Fall back the kernel to the to uncorrected kernel.
+    p->force.A = 1.f;
+    memset(p->force.B, 0, 3 * sizeof(float));
+    memset(p->force.grad_A, 0, 3 * sizeof(float));
+    memset(p->force.grad_B, 0, 3 * 3 * sizeof(float));
+    
+    p->force.vac_switch = 0.f; // Treat as a vacuum boundary (severely under resolved)
+
+    return; // Skip the rest (which requires this inverse)
+  }
+  m2_bar_inv.xx = M[0][0];
+  m2_bar_inv.yy = M[1][1];
+  m2_bar_inv.zz = M[2][2];
+  m2_bar_inv.xy = M[0][1];
+  m2_bar_inv.xz = M[0][2];
+  m2_bar_inv.yz = M[1][2];
+
   for (int i = 0; i < 6; i++) {
     m2_bar_inv.elements[i] /= (p->h * p->h);
   }
