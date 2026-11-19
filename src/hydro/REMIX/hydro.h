@@ -670,6 +670,19 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
 #endif
 
   hydro_prepare_force_extra_kernel(p);
+
+  #ifdef MATERIAL_STRENGTH
+    /* Particles whose evolved density is so far from the implied density is not a trustworthy solid */
+    if ((p->phase == mat_phase_solid) && (p->m0 < 0.01f)) {
+      p->phase = mat_phase_fluid;
+      xp->phase_full = mat_phase_fluid;
+
+      /* We've already missed the boat to stop the stress getting set, so drop it */
+      zero_sym_matrix(&p->strength_data.deviatoric_stress_tensor);
+      zero_sym_matrix(&xp->strength_data.deviatoric_stress_tensor_full);
+    }
+  #endif /* MATERIAL_STRENGTH */
+
   hydro_prepare_force_strength(p, xp, p->rho_evol, p->u);
 
   /* Compute the sound speed */
@@ -851,9 +864,14 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
   hydro_compute_max_wave_speed(&max_wave_speed, p, soundspeed, p->rho_evol);
   p->force.v_sig = max(p->force.v_sig, 2.f * max_wave_speed);
 
-  p->phase =
-    (enum mat_phase)material_phase_from_internal_energy(
-     p->rho_evol, p->u, p->mat_id);
+  /* Never go from fluid -> solid */
+  if (xp->phase_full == mat_phase_fluid) {
+    p->phase = mat_phase_fluid;
+  } else {
+    p->phase =
+      (enum mat_phase)material_phase_from_internal_energy(
+       p->rho_evol, p->u, p->mat_id);
+  }
 
   hydro_predict_strength_end(p, dt_therm);
 }
@@ -939,10 +957,14 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
     p->drho_dt = 0.f;
   }
 
-  xp->phase_full =
-    (enum mat_phase)material_phase_from_internal_energy(
-     xp->rho_evol_full, xp->u_full, p->mat_id);
-
+  /* Never go from fluid -> solid */
+  if ((xp->phase_full == mat_phase_fluid) || (p->phase == mat_phase_fluid)) {
+    xp->phase_full = mat_phase_fluid;
+  } else {
+    xp->phase_full =
+      (enum mat_phase)material_phase_from_internal_energy(
+       xp->rho_evol_full, xp->u_full, p->mat_id);
+  }
 
   hydro_kick_strength_end(p, xp, dt_therm);
 }
