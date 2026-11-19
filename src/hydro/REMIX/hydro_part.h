@@ -264,6 +264,14 @@ struct part {
       /*! Constant needed for slope limiter: 1 / eta_neighbours. */
       float eta_crit;
 
+      /*! DEBUG: shape of neighbour cloud from m2/h^2 (set in
+       * hydro_prepare_force_extra_kernel). q = 27 det/tr^3: 1 = isotropic,
+       * -> 0 = plane or line. Placed in the union so sizeof(struct part)
+       * (and restart compatibility) is unchanged. */
+      float debug_m2_q;
+      float debug_m2_tr;
+      float debug_m2_det;
+
     } force;
   };
 

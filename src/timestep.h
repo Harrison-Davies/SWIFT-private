@@ -234,6 +234,54 @@ __attribute__((always_inline)) INLINE static integertime_t get_part_timestep(
 
     message("part (id=%lld): limiting timestep is '%s' (dt = %e)", p->id,
             names[i_min], dts[i_min]);
+
+#ifdef REMIX_SPH
+    {
+      const struct hydro_props *hp = e->hydro_properties;
+      const float h = p->h;
+
+      /* Size of the LRK correction terms (dimensionless). */
+      const float Bmag = sqrtf(p->force.B[0] * p->force.B[0] +
+                               p->force.B[1] * p->force.B[1] +
+                               p->force.B[2] * p->force.B[2]);
+      float gradB2 = 0.f;
+      for (int a = 0; a < 3; a++)
+        for (int b = 0; b < 3; b++)
+          gradB2 += p->force.grad_B[a][b] * p->force.grad_B[a][b];
+
+      /* Strain rate and what it implies across one smoothing length. */
+      const float sr = sqrtf(
+          strength_compute_sym_matrix_J_2(p->strength_data.strain_rate_tensor));
+      const float dt_courant = 2.f * kernel_gamma * hp->CFL_condition *
+                               e->cosmology->a * h /
+                               (e->cosmology->a_factor_sound_speed * p->force.v_sig);
+
+      /* Thermodynamic state: why isn't it melted? */
+      const float rho_0 = material_rho_0(p->mat_id);
+      const float T = gas_temperature_from_internal_energy(p->rho_evol, p->u, p->mat_id);
+      const float T_melt = get_T_melt(p->rho_evol, p->u, p->mat_id);
+
+      message("part (id=%lld): mat_id=%d phase=%d damage=%.4f",
+              p->id, p->mat_id, p->phase, strength_get_damage(p));
+      message("part (id=%lld): h=%e h_max=%e h/h_max=%.4f is_h_max=%d m0=%.4f",
+              p->id, h, hp->h_max, h / hp->h_max, p->is_h_max, p->m0);
+      message("part (id=%lld): rho=%e rho_0=%e rho/rho_0=%.4f P=%e T=%e T_melt=%e",
+              p->id, p->rho_evol, rho_0, p->rho_evol / rho_0,
+              p->force.pressure, T, T_melt);
+      message("part (id=%lld): m2/h^2 shape q=%e (1=isotropic, 0=plane/line) "
+              "tr=%e det=%e",
+              p->id, p->force.debug_m2_q, p->force.debug_m2_tr,
+              p->force.debug_m2_det);
+      message("part (id=%lld): A=%e h|B|=%e h^2|gradB|=%e vac_switch=%.4f",
+              p->id, p->force.A, h * Bmag, h * h * sqrtf(gradB2),
+              p->force.vac_switch);
+      message("part (id=%lld): sqrt(J2(eps_dot))=%e h*sqrt(J2)=%e c=%e v_sig=%e "
+              "dt_courant=%e",
+              p->id, sr, h * sr, p->force.soundspeed, p->force.v_sig, dt_courant);
+      message("part (id=%lld): x=(%e, %e, %e) v=(%e, %e, %e)",
+              p->id, p->x[0], p->x[1], p->x[2], p->v[0], p->v[1], p->v[2]);
+    }
+#endif /* REMIX_SPH */
     #endif /* MATERIAL_STRENGTH */
     error("part (id=%lld) wants a time-step (%e) below dt_min (%e)", p->id,
           new_dt, e->dt_min);

@@ -403,6 +403,29 @@ hydro_end_gradient_extra_kernel(struct part *restrict p) {
 __attribute__((always_inline)) INLINE static void
 hydro_prepare_force_extra_kernel(struct part *restrict p) {
 
+#ifdef MATERIAL_STRENGTH
+  /* DEBUG: shape of the neighbour cloud from m2/h^2 (q = 27 det/tr^3).
+   * Computed into locals first and only stored at the exits, because
+   * p->force shares memory with p->gradient (which still holds m2_bar). */
+  float debug_m2_q, debug_m2_tr, debug_m2_det;
+  {
+    const float h2_inv = 1.f / (p->h * p->h);
+    const float xx = p->gradient.m2_bar.xx * h2_inv;
+    const float yy = p->gradient.m2_bar.yy * h2_inv;
+    const float zz = p->gradient.m2_bar.zz * h2_inv;
+    const float xy = p->gradient.m2_bar.xy * h2_inv;
+    const float xz = p->gradient.m2_bar.xz * h2_inv;
+    const float yz = p->gradient.m2_bar.yz * h2_inv;
+    debug_m2_tr = xx + yy + zz;
+    debug_m2_det = xx * (yy * zz - yz * yz) - xy * (xy * zz - yz * xz) +
+                   xz * (xy * yz - yy * xz);
+    debug_m2_q = (debug_m2_tr > 0.f)
+                     ? 27.f * debug_m2_det /
+                           (debug_m2_tr * debug_m2_tr * debug_m2_tr)
+                     : 0.f;
+  }
+#endif
+
   if (p->is_h_max) {
     /* Use standard kernal gradients if h=h_max */
     /* Linear-order reproducing kernel parameters are set to "defaults" */
@@ -411,6 +434,12 @@ hydro_prepare_force_extra_kernel(struct part *restrict p) {
     memset(p->force.B, 0.f, 3 * sizeof(float));
     memset(p->force.grad_A, 0.f, 3 * sizeof(float));
     memset(p->force.grad_B, 0.f, 3 * 3 * sizeof(float));
+
+#ifdef MATERIAL_STRENGTH
+    p->force.debug_m2_q = debug_m2_q;
+    p->force.debug_m2_tr = debug_m2_tr;
+    p->force.debug_m2_det = debug_m2_det;
+#endif
 
     return;
   }
@@ -444,7 +473,7 @@ hydro_prepare_force_extra_kernel(struct part *restrict p) {
   // sym_matrix_invert(&m2_bar_inv, &m2_bar_over_h2);
   float M[3][3];
   get_matrix_from_sym_matrix(M, &m2_bar_over_h2);
-  if (invert_dimension_by_dimension_matrix(M)) {  // Fails if the neighbours span fewer than 3 dimensions (e.g. in are on a line)
+  if (invert_dimension_by_dimension_matrix(M)) {  // Fails if the neighbours span fewer than 3 dimensions (e.g. are on a line)
     // Fall back the kernel to the to uncorrected kernel.
     p->force.A = 1.f;
     memset(p->force.B, 0, 3 * sizeof(float));
@@ -452,6 +481,12 @@ hydro_prepare_force_extra_kernel(struct part *restrict p) {
     memset(p->force.grad_B, 0, 3 * 3 * sizeof(float));
     
     p->force.vac_switch = 0.f; // Treat as a vacuum boundary (severely under resolved)
+
+#ifdef MATERIAL_STRENGTH
+    p->force.debug_m2_q = debug_m2_q;
+    p->force.debug_m2_tr = debug_m2_tr;
+    p->force.debug_m2_det = debug_m2_det;
+#endif
 
     return; // Skip the rest (which requires this inverse)
   }
@@ -540,6 +575,12 @@ hydro_prepare_force_extra_kernel(struct part *restrict p) {
     p->force.vac_switch =
         expf(-(hB - offset) * (hB - offset) / (2.f * sigma * sigma));
   }
+
+#ifdef MATERIAL_STRENGTH
+  p->force.debug_m2_q = debug_m2_q;
+  p->force.debug_m2_tr = debug_m2_tr;
+  p->force.debug_m2_det = debug_m2_det;
+#endif
 }
 
 /**
