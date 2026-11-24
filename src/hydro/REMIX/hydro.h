@@ -672,8 +672,10 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
   hydro_prepare_force_extra_kernel(p);
 
   #ifdef MATERIAL_STRENGTH
-    /* Particles whose evolved density is so far from the implied density is not a trustworthy solid */
-    if ((p->phase == mat_phase_solid) && (p->m0 < 0.01f)) {
+    /* Particles whose evolved density is so far from the implied density is not a trustworthy solid.
+     * Particles at h_max also revert to fluid (following Tom Sandnes' 51367a23e
+     * "Prevent fluid from solidifying" on planetary_mix_strength). */
+    if ((p->phase == mat_phase_solid) && ((p->m0 < 0.01f) || p->is_h_max)) {
       p->phase = mat_phase_fluid;
       xp->phase_full = mat_phase_fluid;
 

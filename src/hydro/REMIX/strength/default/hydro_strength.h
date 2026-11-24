@@ -41,8 +41,8 @@
 __attribute__((always_inline)) INLINE static void hydro_compute_timestep_strength(
     float *dt_cfl, const struct part *restrict p, const struct hydro_props *restrict hydro_properties) {
 
-  /* Update dt_cfl with elastic contribution. */
-  strength_compute_timestep_stress_tensor(dt_cfl, p, hydro_properties);
+  /* Strain-rate (elastic) time-step limit removed, following Tom Sandnes'
+   * 32121fba1 "Remove shear timestep condition" on planetary_mix_strength. */
 
   /* Update dt_cfl with damage contribution. */
   strength_compute_timestep_damage(dt_cfl, p);
