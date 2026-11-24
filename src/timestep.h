@@ -30,6 +30,11 @@
 #include "rt.h"
 #include "timeline.h"
 
+#if defined(MATERIAL_STRENGTH) && defined(REMIX_SPH)
+/* DEBUG: neighbour dump when a particle wants dt < dt_min. */
+#include "hydro/REMIX/hydro_debug_neighbours.h"
+#endif
+
 /**
  * @brief Compute a valid integer time-step form a given time-step
  *
@@ -281,6 +286,9 @@ __attribute__((always_inline)) INLINE static integertime_t get_part_timestep(
       message("part (id=%lld): x=(%e, %e, %e) v=(%e, %e, %e)",
               p->id, p->x[0], p->x[1], p->x[2], p->v[0], p->v[1], p->v[2]);
     }
+
+    /* Dump every neighbour and a rebuild of m2_bar. */
+    debug_dump_neighbours_remix(p, e);
 #endif /* REMIX_SPH */
     #endif /* MATERIAL_STRENGTH */
     error("part (id=%lld) wants a time-step (%e) below dt_min (%e)", p->id,
